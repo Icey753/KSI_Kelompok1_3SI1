@@ -1,0 +1,16 @@
+__pycache__/
+.venv/
+output/
+native/ascon/build/
+native/ascon/ascon-c/build/
+native/ascon/ascon-c/.git/
+native/ascon/*.dll
+native/ascon/*.so
+native/ascon/*.dylib
+native/ascon/bin/*.dll
+native/ascon/bin/*.so
+native/ascon/bin/*.dylib
+native/ascon/ascon-c/*.dll
+native/ascon/ascon-c/*.so
+native/ascon/ascon-c/*.dylib
+*.pyc

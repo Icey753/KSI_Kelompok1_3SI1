@@ -313,16 +313,16 @@ def build_dash_app(csv_path: str) -> dash.Dash:
                                 },
                                 style_data_conditional=[
                                     {
-                                        "if": {"column_id": "TamperingIntegrityPassed", "filter_query": "{TamperingIntegrityPassed} == True"},
+                                        "if": {"column_id": "TamperingIntegrityPassed", "filter_query": "{TamperingIntegrityPassed} = True"},
                                         "color": "#34d399",
                                         "fontWeight": "bold"
                                     },
                                     {
-                                        "if": {"column_id": "Algorithm", "filter_query": "{Algorithm} == 'AES-GCM'"},
+                                        "if": {"column_id": "Algorithm", "filter_query": "{Algorithm} = 'AES-GCM'"},
                                         "color": "#60a5fa"
                                     },
                                     {
-                                        "if": {"column_id": "Algorithm", "filter_query": "{Algorithm} == 'Ascon-128'"},
+                                        "if": {"column_id": "Algorithm", "filter_query": "{Algorithm} = 'Ascon-128'"},
                                         "color": "#f472b6"
                                     }
                                 ]
