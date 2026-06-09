@@ -70,9 +70,9 @@ def main():
     # Pipeline tetap dijalankan untuk semua ukuran file, tetapi jumlah iterasi disesuaikan
     # agar seluruh skenario selesai dalam waktu yang masih masuk akal.
     iteration_plan = {
-        "small": {"iterations": 10, "warm_ups": 3},
-        "medium": {"iterations": 5, "warm_ups": 1},
-        "large": {"iterations": 1, "warm_ups": 0},
+        "small": {"iterations": 30, "warm_ups": 5},
+        "medium": {"iterations": 20, "warm_ups": 5},
+        "large": {"iterations": 10, "warm_ups": 5},
     }
 
     for file_path, file_type, size_cat in scenarios:
