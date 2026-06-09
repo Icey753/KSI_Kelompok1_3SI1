@@ -183,13 +183,6 @@ Setiap baris CSV berisi:
 - Ascon-128 pada implementasi pure Python dapat sangat lambat untuk file besar.
 - Untuk menguji satu skenario saja tanpa menjalankan pipeline penuh, gunakan modul `src/benchmark.py` secara langsung.
 
-## Kolaborasi
-
-Yang sebaiknya di-commit ke repo ini:
-
-- kode Python di `src/`
-- `main.py`, `dashboard.py`, `README.md`, dan `requirements.txt`
-- dokumentasi dan konfigurasi build yang dipakai bersama
 
 ## Pengujian Manual
 
