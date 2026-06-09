@@ -107,7 +107,7 @@ pip install -r requirements.txt
 
 Project ini sudah membawa DLL Ascon di `native/ascon/bin/`, sehingga clone lalu run sudah cukup tanpa build manual.
 
-Untuk melakukan rebuild dari source, kode Ascon C tersedia di `native/ascon/ascon-c/`.
+Untuk melakukan rebuild dari source, kode Ascon C tersedia di `https://github.com/ascon/ascon-c` yang menggunakan bahasa C lalu build menggunakan ctypes dan cmake.
 
 DLL akan terbaca otomatis oleh `src/cipher_ascon.py` dari urutan berikut:
 
