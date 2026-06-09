@@ -105,7 +105,7 @@ pip install -r requirements.txt
 
 ### 4. Backend Ascon C
 
-Project ini sudah membawa DLL Ascon di `native/ascon/bin/`, sehingga anggota tim cukup clone lalu run tanpa build manual.
+Project ini sudah membawa DLL Ascon di `native/ascon/bin/`, sehingga clone lalu run sudah cukup tanpa build manual.
 
 Untuk melakukan rebuild dari source, kode Ascon C tersedia di `native/ascon/ascon-c/`.
 
