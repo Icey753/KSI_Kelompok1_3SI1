@@ -212,7 +212,6 @@ def _run_algorithm_benchmark(
 
     artifact_info = {
         "algorithm": algorithm,
-        "ciphertext_bytes": ciphertext_bytes,
         "metadata": metadata,
     }
 

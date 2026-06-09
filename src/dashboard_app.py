@@ -896,66 +896,68 @@ def build_dash_app(csv_path: str | None) -> dash.Dash:
         artifacts_panel = _build_artifact_panel(state if state and state.get("source") == "upload" else None)
         return metrics, enc_fig, dec_fig, overhead_fig, filtered_df.to_dict("records"), artifacts_panel
 
+    def _send_file(path: str, filename: str):
+        payload = Path(path).read_bytes()
+        return dcc.send_bytes(lambda buffer: buffer.write(payload), filename)
+
+    def _send_text(path: str, filename: str):
+        text = Path(path).read_text(encoding="utf-8")
+        return dcc.send_bytes(lambda buffer: buffer.write(text.encode("utf-8")), filename)
+
     @app.callback(
         Output("download-aes-gcm-ciphertext", "data"),
-        Output("download-aes-gcm-metadata", "data"),
-        Output("download-ascon-128-ciphertext", "data"),
-        Output("download-ascon-128-metadata", "data"),
-        Input("download-aes-gcm-ciphertext", "n_clicks"),
-        Input("download-aes-gcm-metadata", "n_clicks"),
-        Input("download-ascon-128-ciphertext", "n_clicks"),
-        Input("download-ascon-128-metadata", "n_clicks"),
+        Input("download-aes_gcm-ciphertext", "n_clicks"),
         State("benchmark-state", "data"),
         prevent_initial_call=True,
     )
-    def handle_downloads(*args):
-        benchmark_state = args[-1]
-        triggered = ctx.triggered_id
-        if not benchmark_state or benchmark_state.get("source") != "upload":
+    def download_aes_gcm_ciphertext(n_clicks, benchmark_state):
+        if not n_clicks or not benchmark_state or benchmark_state.get("source") != "upload":
             raise PreventUpdate
+        artifact = benchmark_state.get("artifacts", {}).get("AES-GCM")
+        if not artifact:
+            raise PreventUpdate
+        return _send_file(artifact["ciphertext_path"], artifact["ciphertext_filename"])
 
-        artifacts = benchmark_state.get("artifacts", {})
+    @app.callback(
+        Output("download-aes-gcm-metadata", "data"),
+        Input("download-aes_gcm-metadata", "n_clicks"),
+        State("benchmark-state", "data"),
+        prevent_initial_call=True,
+    )
+    def download_aes_gcm_metadata(n_clicks, benchmark_state):
+        if not n_clicks or not benchmark_state or benchmark_state.get("source") != "upload":
+            raise PreventUpdate
+        artifact = benchmark_state.get("artifacts", {}).get("AES-GCM")
+        if not artifact:
+            raise PreventUpdate
+        return _send_text(artifact["metadata_path"], artifact["metadata_filename"])
 
-        def send_bytes_from_path(path: str, filename: str):
-            payload = Path(path).read_bytes()
-            return dcc.send_bytes(lambda buffer: buffer.write(payload), filename)
+    @app.callback(
+        Output("download-ascon-128-ciphertext", "data"),
+        Input("download-ascon_128-ciphertext", "n_clicks"),
+        State("benchmark-state", "data"),
+        prevent_initial_call=True,
+    )
+    def download_ascon_128_ciphertext(n_clicks, benchmark_state):
+        if not n_clicks or not benchmark_state or benchmark_state.get("source") != "upload":
+            raise PreventUpdate
+        artifact = benchmark_state.get("artifacts", {}).get("Ascon-128")
+        if not artifact:
+            raise PreventUpdate
+        return _send_file(artifact["ciphertext_path"], artifact["ciphertext_filename"])
 
-        def send_text_from_path(path: str, filename: str):
-            text = Path(path).read_text(encoding="utf-8")
-            return dcc.send_bytes(lambda buffer: buffer.write(text.encode("utf-8")), filename)
-
-        aes_artifact = artifacts.get("AES-GCM", {})
-        ascon_artifact = artifacts.get("Ascon-128", {})
-
-        if triggered == "download-aes-gcm-ciphertext":
-            return (
-                send_bytes_from_path(aes_artifact["ciphertext_path"], aes_artifact["ciphertext_filename"]),
-                no_update,
-                no_update,
-                no_update,
-            )
-        if triggered == "download-aes-gcm-metadata":
-            return (
-                no_update,
-                send_text_from_path(aes_artifact["metadata_path"], aes_artifact["metadata_filename"]),
-                no_update,
-                no_update,
-            )
-        if triggered == "download-ascon-128-ciphertext":
-            return (
-                no_update,
-                no_update,
-                send_bytes_from_path(ascon_artifact["ciphertext_path"], ascon_artifact["ciphertext_filename"]),
-                no_update,
-            )
-        if triggered == "download-ascon-128-metadata":
-            return (
-                no_update,
-                no_update,
-                no_update,
-                send_text_from_path(ascon_artifact["metadata_path"], ascon_artifact["metadata_filename"]),
-            )
-
-        raise PreventUpdate
+    @app.callback(
+        Output("download-ascon-128-metadata", "data"),
+        Input("download-ascon_128-metadata", "n_clicks"),
+        State("benchmark-state", "data"),
+        prevent_initial_call=True,
+    )
+    def download_ascon_128_metadata(n_clicks, benchmark_state):
+        if not n_clicks or not benchmark_state or benchmark_state.get("source") != "upload":
+            raise PreventUpdate
+        artifact = benchmark_state.get("artifacts", {}).get("Ascon-128")
+        if not artifact:
+            raise PreventUpdate
+        return _send_text(artifact["metadata_path"], artifact["metadata_filename"])
 
     return app
