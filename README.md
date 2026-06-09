@@ -104,9 +104,9 @@ pip install -r requirements.txt
 
 ### 4. Backend Ascon C
 
-Project ini sudah membawa DLL Ascon di `native/ascon/bin/`, jadi teman satu tim cukup clone lalu run tanpa build manual.
+Project ini sudah membawa DLL Ascon di `native/ascon/bin/`, sehingga anggota tim cukup clone lalu run tanpa build manual.
 
-Kalau kamu ingin rebuild sendiri, source Ascon C tetap ada di `native/ascon/ascon-c/`.
+Untuk melakukan rebuild dari source, kode Ascon C tersedia di `native/ascon/ascon-c/`.
 
 DLL akan terbaca otomatis oleh `src/cipher_ascon.py` dari urutan berikut:
 
@@ -169,7 +169,7 @@ Setiap baris CSV berisi:
 
 - AES-GCM biasanya jauh lebih cepat karena dukungan akselerasi hardware pada banyak CPU modern.
 - Ascon-128 pada implementasi pure Python dapat sangat lambat untuk file besar.
-- Jika benchmark penuh terasa lama, jalankan per skenario dari modul `src/benchmark.py`.
+- Untuk menguji satu skenario saja tanpa menjalankan pipeline penuh, gunakan modul `src/benchmark.py` secara langsung.
 
 ## Kolaborasi
 
@@ -177,17 +177,7 @@ Yang sebaiknya di-commit ke repo ini:
 
 - kode Python di `src/`
 - `main.py`, `dashboard.py`, `README.md`, dan `requirements.txt`
-- dokumentasi dan konfigurasi build yang memang dipakai bersama
-
-Yang sebaiknya tidak di-commit:
-
-- `output/`
-- `.venv/`
-- hasil build native di `native/ascon/ascon-c/build/`
-- file DLL/SO/DYLIB hasil kompilasi di luar `native/ascon/bin/`
-- repo Git nested dari source vendor asli
-
-Kalau ingin kolaborasi yang rapi, anggota tim cukup clone repo ini, install dependency, lalu jalankan `python main.py`.
+- dokumentasi dan konfigurasi build yang dipakai bersama
 
 ## Pengujian Manual
 
