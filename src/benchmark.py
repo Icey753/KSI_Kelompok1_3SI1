@@ -1,5 +1,6 @@
 import json
 import os
+import base64
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -65,16 +66,18 @@ def _persist_artifact_files(
 
     file_prefix = _safe_stem(input_file_name)
     algorithm_slug = algorithm.lower().replace("-", "_")
-    ciphertext_path = artifact_dir / f"{file_prefix}_{algorithm_slug}_ciphertext.bin"
+    ciphertext_base64_path = artifact_dir / f"{file_prefix}_{algorithm_slug}_ciphertext_base64.txt"
     metadata_path = artifact_dir / f"{file_prefix}_{algorithm_slug}_metadata.json"
 
-    ciphertext_path.write_bytes(ciphertext_bytes)
+    ciphertext_base64 = base64.b64encode(ciphertext_bytes).decode("ascii")
+    ciphertext_base64_path.write_text(ciphertext_base64, encoding="utf-8")
 
     serializable_metadata = dict(metadata)
     serializable_metadata.update(
         {
-            "ciphertext_filename": ciphertext_path.name,
-            "ciphertext_path": str(ciphertext_path),
+            "ciphertext_encoding": "base64",
+            "ciphertext_filename": ciphertext_base64_path.name,
+            "ciphertext_path": str(ciphertext_base64_path),
             "metadata_filename": metadata_path.name,
             "metadata_path": str(metadata_path),
         }
@@ -85,8 +88,9 @@ def _persist_artifact_files(
     )
 
     return {
-        "ciphertext_path": str(ciphertext_path),
-        "ciphertext_filename": ciphertext_path.name,
+        "ciphertext_path": str(ciphertext_base64_path),
+        "ciphertext_filename": ciphertext_base64_path.name,
+        "ciphertext_encoding": "base64",
         "metadata_path": str(metadata_path),
         "metadata_filename": metadata_path.name,
     }
@@ -198,6 +202,7 @@ def _run_algorithm_benchmark(
         "nonce_hex": nonce_bytes.hex(),
         "tag_hex": tag_bytes.hex(),
         "associated_data_hex": AD.hex(),
+        "ciphertext_encoding": "base64",
         "enc_latency_mean_ms": float(np.mean(enc_times)),
         "enc_latency_std_ms": float(np.std(enc_times)),
         "dec_latency_mean_ms": float(np.mean(dec_times)),

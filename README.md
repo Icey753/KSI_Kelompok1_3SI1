@@ -149,7 +149,7 @@ Dashboard ini mendukung:
 - upload file JSON atau gambar langsung dari browser
 - menjalankan benchmark AES-GCM dan Ascon-128 pada file upload
 - melihat preview file, ringkasan hasil, dan grafik perbandingan
-- mengunduh ciphertext dan metadata hasil enkripsi
+- mengunduh ciphertext Base64 dan metadata hasil enkripsi
 - menyimpan hasil benchmark upload ke CSV baru di `output/results/`
 
 ## Output
@@ -157,7 +157,7 @@ Dashboard ini mendukung:
 - `output/results/benchmark_results.csv`
 - `output/charts/latency_comparison.png`
 - CSV baru hasil upload dashboard di `output/results/`
-- ciphertext dan metadata artefak upload di `output/uploads/`
+- ciphertext Base64 dan metadata artefak upload di `output/uploads/`
 
 ## Format Hasil Benchmark
 

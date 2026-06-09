@@ -359,12 +359,12 @@ def _artifact_card(algorithm: str, artifact: dict | None, accent: str) -> html.D
     return html.Div(
         [
             html.H4(algorithm, style={"margin": "0 0 0.75rem 0", "color": accent}),
-            html.Div(f"Ciphertext: {artifact.get('ciphertext_filename', '-')}", style={"marginBottom": "0.4rem"}),
+            html.Div(f"Ciphertext Base64: {artifact.get('ciphertext_filename', '-')}", style={"marginBottom": "0.4rem"}),
             html.Div(f"Metadata: {artifact.get('metadata_filename', '-')}", style={"marginBottom": "1rem"}),
             html.Div(
                 [
                     html.Button(
-                        "Unduh Ciphertext",
+                        "Unduh Ciphertext Base64",
                         id=f"download-{algorithm.lower().replace('-', '_')}-ciphertext",
                         n_clicks=0,
                         style={
@@ -896,9 +896,9 @@ def build_dash_app(csv_path: str | None) -> dash.Dash:
         artifacts_panel = _build_artifact_panel(state if state and state.get("source") == "upload" else None)
         return metrics, enc_fig, dec_fig, overhead_fig, filtered_df.to_dict("records"), artifacts_panel
 
-    def _send_file(path: str, filename: str):
-        payload = Path(path).read_bytes()
-        return dcc.send_bytes(lambda buffer: buffer.write(payload), filename)
+    def _send_text(path: str, filename: str):
+        text = Path(path).read_text(encoding="utf-8")
+        return dcc.send_bytes(lambda buffer: buffer.write(text.encode("utf-8")), filename)
 
     def _send_text(path: str, filename: str):
         text = Path(path).read_text(encoding="utf-8")
@@ -916,7 +916,7 @@ def build_dash_app(csv_path: str | None) -> dash.Dash:
         artifact = benchmark_state.get("artifacts", {}).get("AES-GCM")
         if not artifact:
             raise PreventUpdate
-        return _send_file(artifact["ciphertext_path"], artifact["ciphertext_filename"])
+        return _send_text(artifact["ciphertext_path"], artifact["ciphertext_filename"])
 
     @app.callback(
         Output("download-aes-gcm-metadata", "data"),
@@ -944,7 +944,7 @@ def build_dash_app(csv_path: str | None) -> dash.Dash:
         artifact = benchmark_state.get("artifacts", {}).get("Ascon-128")
         if not artifact:
             raise PreventUpdate
-        return _send_file(artifact["ciphertext_path"], artifact["ciphertext_filename"])
+        return _send_text(artifact["ciphertext_path"], artifact["ciphertext_filename"])
 
     @app.callback(
         Output("download-ascon-128-metadata", "data"),
