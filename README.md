@@ -79,6 +79,7 @@ Pipeline dibagi menjadi 5 fase:
 4. `src/report.py` menyimpan hasil ke `output/results/benchmark_results.csv`.
 5. `src/visualize.py` membuat grafik latensi ke `output/charts/latency_comparison.png`.
 6. `dashboard.py` menampilkan dashboard interaktif melalui Dash.
+   - Jika CSV belum ada, dashboard tetap bisa dibuka untuk upload file langsung.
 
 ## Build
 
@@ -143,16 +144,27 @@ Lalu buka:
 http://127.0.0.1:8050/
 ```
 
+Dashboard ini mendukung:
+
+- upload file JSON atau gambar langsung dari browser
+- menjalankan benchmark AES-GCM dan Ascon-128 pada file upload
+- melihat preview file, ringkasan hasil, dan grafik perbandingan
+- mengunduh ciphertext dan metadata hasil enkripsi
+- menyimpan hasil benchmark upload ke CSV baru di `output/results/`
+
 ## Output
 
 - `output/results/benchmark_results.csv`
 - `output/charts/latency_comparison.png`
+- CSV baru hasil upload dashboard di `output/results/`
+- ciphertext dan metadata artefak upload di `output/uploads/`
 
 ## Format Hasil Benchmark
 
 Setiap baris CSV berisi:
 
 - `Algorithm`
+- `InputFileName`
 - `FileType`
 - `SizeCategory`
 - `PlaintextSizeBytes`
