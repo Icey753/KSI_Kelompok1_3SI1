@@ -68,3 +68,25 @@ def test_chunked_scenario_overhead_and_shape():
     assert aes_whole["Chunks"] == 1
     assert aes_whole["OverheadBytes"] == 16 + 12
     assert aes_small["OverheadPct"] > aes_whole["OverheadPct"]
+
+
+@pytest.mark.parametrize("algorithm", ("AES-GCM", "Ascon-128"))
+def test_empty_chunk_list_rejected(algorithm):
+    key, base = _setup(algorithm)
+    assert decrypt_chunked(algorithm, key, base, []) is None
+
+
+@pytest.mark.parametrize("algorithm", ("AES-GCM", "Ascon-128"))
+def test_appended_extra_chunk_rejected(algorithm):
+    key, base = _setup(algorithm)
+    chunks = encrypt_chunked(algorithm, key, base, os.urandom(10_000), 4096)
+    chunks.append(chunks[-1])
+    assert decrypt_chunked(algorithm, key, base, chunks) is None
+
+
+@pytest.mark.parametrize("algorithm", ("AES-GCM", "Ascon-128"))
+def test_duplicated_middle_chunk_rejected(algorithm):
+    key, base = _setup(algorithm)
+    chunks = encrypt_chunked(algorithm, key, base, os.urandom(10_000), 4096)
+    chunks.insert(2, chunks[1])
+    assert decrypt_chunked(algorithm, key, base, chunks) is None

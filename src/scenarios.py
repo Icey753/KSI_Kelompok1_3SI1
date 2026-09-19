@@ -90,6 +90,8 @@ def encrypt_chunked(algorithm: str, key: bytes, base_nonce: bytes, data: bytes, 
 
 
 def decrypt_chunked(algorithm: str, key: bytes, base_nonce: bytes, chunks: list[tuple[bytes, bytes]]) -> bytes | None:
+    if not chunks:
+        return None
     parts = []
     for i, (ciphertext, tag) in enumerate(chunks):
         plaintext = open_sealed(
@@ -101,6 +103,9 @@ def decrypt_chunked(algorithm: str, key: bytes, base_nonce: bytes, chunks: list[
     return b"".join(parts)
 
 
+# For very small chunk sizes, Python call overhead dominates the measured latency
+# (about total_bytes/chunk_size Python-level seal calls), so small-chunk numbers reflect
+# this implementation overhead, not the algorithm alone.
 def run_chunked_scenario(
     total_bytes: int = 8 * 1024 * 1024,
     chunk_sizes=(4096, 65536, 1048576, None),
