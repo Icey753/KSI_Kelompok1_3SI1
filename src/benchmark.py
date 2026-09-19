@@ -9,6 +9,7 @@ import numpy as np
 
 from src.cipher_aes import aes_gcm_decrypt, aes_gcm_encrypt
 from src.cipher_ascon import BACKEND as ASCON_BACKEND, ascon_128_decrypt, ascon_128_encrypt
+from src.stats_utils import ci95_halfwidth
 
 AD = b"cipher-benchmark-metadata"
 
@@ -48,13 +49,18 @@ def _build_result_row(
         "EncLatencyMeanMs": float(np.mean(enc_times)),
         "EncLatencyMedianMs": float(np.median(enc_times)),
         "EncLatencyStdMs": float(np.std(enc_times)),
+        "EncLatencyCI95Ms": ci95_halfwidth(enc_times),
         "DecLatencyMeanMs": float(np.mean(dec_times)),
         "DecLatencyMedianMs": float(np.median(dec_times)),
         "DecLatencyStdMs": float(np.std(dec_times)),
+        "DecLatencyCI95Ms": ci95_halfwidth(dec_times),
+        "Iterations": len(enc_times),
         "OverheadBytes": overhead_bytes,
         "OverheadPct": overhead_pct,
         "TamperingIntegrityPassed": tampering_passed,
         "Backend": ASCON_BACKEND if algorithm == "Ascon-128" else "pycryptodome",
+        "_EncSamplesMs": list(enc_times),
+        "_DecSamplesMs": list(dec_times),
     }
 
 

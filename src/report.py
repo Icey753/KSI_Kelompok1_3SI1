@@ -19,10 +19,33 @@ def save_benchmark_results(results_list: list[dict], filename: str = "benchmark_
     """
     os.makedirs(RESULTS_DIR, exist_ok=True)
     df = pd.DataFrame(results_list)
+    df = df[[c for c in df.columns if not c.startswith("_")]]
     output_path = os.path.join(RESULTS_DIR, filename)
     df.to_csv(output_path, index=False)
     print(f"\nLaporan hasil benchmark berhasil disimpan ke: {output_path}")
     return output_path
+
+def save_raw_samples(results_list: list[dict], filename: str = "raw_samples.csv") -> str:
+    os.makedirs(RESULTS_DIR, exist_ok=True)
+    records = []
+    for row in results_list:
+        for op, key in (("enc", "_EncSamplesMs"), ("dec", "_DecSamplesMs")):
+            for iteration, value in enumerate(row.get(key, [])):
+                records.append(
+                    {
+                        "Algorithm": row["Algorithm"],
+                        "InputFileName": row["InputFileName"],
+                        "Op": op,
+                        "Iteration": iteration,
+                        "LatencyMs": value,
+                    }
+                )
+    output_path = os.path.join(RESULTS_DIR, filename)
+    pd.DataFrame(
+        records, columns=["Algorithm", "InputFileName", "Op", "Iteration", "LatencyMs"]
+    ).to_csv(output_path, index=False)
+    return output_path
+
 
 if __name__ == "__main__":
     # Self-test
