@@ -17,17 +17,20 @@ def run_small_message_scenario(
     for algorithm in ALL_VARIANTS:
         for size in message_sizes:
             key = os.urandom(16)
+            warm_messages = [os.urandom(size) for _ in range(warm_ups)]
+            warm_nonces = [os.urandom(NONCE_LEN[algorithm]) for _ in range(warm_ups)]
+            for warm_message, warm_nonce in zip(warm_messages, warm_nonces):
+                seal(algorithm, key, warm_nonce, AD, warm_message)
+
             messages = [os.urandom(size) for _ in range(n_messages)]
             nonces = [os.urandom(NONCE_LEN[algorithm]) for _ in range(n_messages)]
-            for i in range(min(warm_ups, n_messages)):
-                seal(algorithm, key, nonces[i], AD, messages[i])
-
             per_message_ns = []
             for message, nonce in zip(messages, nonces):
                 start = time.perf_counter_ns()
                 seal(algorithm, key, nonce, AD, message)
                 per_message_ns.append(time.perf_counter_ns() - start)
 
+            # MessagesPerSec and ThroughputMBps are seal-only rates (sum of per-call seal times; loop overhead excluded)
             total_seconds = sum(per_message_ns) / 1e9
             per_message_us = np.array(per_message_ns) / 1000.0
             rows.append(
@@ -48,6 +51,7 @@ def run_acceleration_scenario(sizes=ACCEL_SIZES, iterations: int = 20, warm_ups:
     rows: list[dict] = []
     for algorithm in ALL_VARIANTS:
         for size in sizes:
+            # Key+nonce reuse is for timing only; ciphertext is discarded (never persisted)
             key, nonce, data = os.urandom(16), os.urandom(NONCE_LEN[algorithm]), os.urandom(size)
             for _ in range(warm_ups):
                 seal(algorithm, key, nonce, AD, data)
