@@ -8,7 +8,7 @@ from pathlib import Path
 import numpy as np
 
 from src.cipher_aes import aes_gcm_decrypt, aes_gcm_encrypt
-from src.cipher_ascon import ascon_128_decrypt, ascon_128_encrypt
+from src.cipher_ascon import BACKEND as ASCON_BACKEND, ascon_128_decrypt, ascon_128_encrypt
 
 AD = b"cipher-benchmark-metadata"
 
@@ -46,12 +46,15 @@ def _build_result_row(
         "PlaintextSizeBytes": plaintext_size,
         "CiphertextSizeBytes": ciphertext_size,
         "EncLatencyMeanMs": float(np.mean(enc_times)),
+        "EncLatencyMedianMs": float(np.median(enc_times)),
         "EncLatencyStdMs": float(np.std(enc_times)),
         "DecLatencyMeanMs": float(np.mean(dec_times)),
+        "DecLatencyMedianMs": float(np.median(dec_times)),
         "DecLatencyStdMs": float(np.std(dec_times)),
         "OverheadBytes": overhead_bytes,
         "OverheadPct": overhead_pct,
         "TamperingIntegrityPassed": tampering_passed,
+        "Backend": ASCON_BACKEND if algorithm == "Ascon-128" else "pycryptodome",
     }
 
 

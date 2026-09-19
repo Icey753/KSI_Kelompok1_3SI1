@@ -55,6 +55,7 @@ def _load_c_backend():
 
 
 _ASCON_C = _load_c_backend()
+BACKEND = "C (ascon-c ref)" if _ASCON_C is not None else "Python (ascon lib)"
 
 
 def _to_ubyte_buffer(data: bytes):

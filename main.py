@@ -66,14 +66,8 @@ def main():
     all_results = []
     
     # 3. Jalankan Loop Benchmark
-    # Catatan: library ascon 0.0.9 adalah pure-Python sehingga sangat lambat pada file besar.
-    # Pipeline tetap dijalankan untuk semua ukuran file, tetapi jumlah iterasi disesuaikan
-    # agar seluruh skenario selesai dalam waktu yang masih masuk akal.
-    iteration_plan = {
-        "small": {"iterations": 30, "warm_ups": 5},
-        "medium": {"iterations": 20, "warm_ups": 5},
-        "large": {"iterations": 10, "warm_ups": 5},
-    }
+    # Sesuai proposal: 5 warm-up + 50 replikasi untuk setiap variasi ukuran.
+    iteration_plan = {size: {"iterations": 50, "warm_ups": 5} for size in ("small", "medium", "large")}
 
     for file_path, file_type, size_cat in scenarios:
         if not os.path.exists(file_path):
