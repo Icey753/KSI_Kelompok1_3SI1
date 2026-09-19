@@ -90,3 +90,8 @@ def test_duplicated_middle_chunk_rejected(algorithm):
     chunks = encrypt_chunked(algorithm, key, base, os.urandom(10_000), 4096)
     chunks.insert(2, chunks[1])
     assert decrypt_chunked(algorithm, key, base, chunks) is None
+
+
+def test_chunked_scenario_requires_positive_iterations():
+    with pytest.raises(ValueError):
+        run_chunked_scenario(total_bytes=10_000, chunk_sizes=(4096,), iterations=0, warm_ups=0)

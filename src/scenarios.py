@@ -114,11 +114,15 @@ def run_chunked_scenario(
     iterations: int = 10,
     warm_ups: int = 2,
 ) -> list[dict]:
+    if iterations < 1:
+        raise ValueError("iterations harus >= 1")
     data = os.urandom(total_bytes)
     rows: list[dict] = []
     for algorithm in ALL_VARIANTS:
-        key, base_nonce = os.urandom(16), os.urandom(NONCE_LEN[algorithm])
         for requested in chunk_sizes:
+            # Fresh key+nonce per (algorithm, chunk size); iterations within one configuration re-encrypt
+            # identical data under identical nonces for timing only, and the ciphertext is discarded.
+            key, base_nonce = os.urandom(16), os.urandom(NONCE_LEN[algorithm])
             chunk_size = total_bytes if requested is None else requested
             for _ in range(warm_ups):
                 decrypt_chunked(algorithm, key, base_nonce, encrypt_chunked(algorithm, key, base_nonce, data, chunk_size))
@@ -132,7 +136,8 @@ def run_chunked_scenario(
                 start = time.perf_counter()
                 decrypted = decrypt_chunked(algorithm, key, base_nonce, chunks)
                 dec_ms.append((time.perf_counter() - start) * 1000)
-            assert decrypted == data, "Dekripsi chunked tidak cocok dengan data asli"
+            if decrypted != data:
+                raise ValueError("Dekripsi chunked tidak cocok dengan data asli")
 
             overhead = TAG_LEN * len(chunks) + len(base_nonce)
             enc_median = float(np.median(enc_ms))
@@ -157,17 +162,19 @@ def run_and_save_scenarios(
     total_bytes: int = 8 * 1024 * 1024,
     iterations: int = 10,
     acceleration_sizes=ACCEL_SIZES,
+    results_dir=None,
 ) -> dict[str, pd.DataFrame]:
     outputs = {
         "small_messages": run_small_message_scenario(n_messages=n_messages, warm_ups=min(200, n_messages)),
         "chunked": run_chunked_scenario(total_bytes=total_bytes, iterations=iterations),
         "acceleration": run_acceleration_scenario(sizes=acceleration_sizes, iterations=iterations),
     }
-    os.makedirs(report.RESULTS_DIR, exist_ok=True)
+    results_dir = report.RESULTS_DIR if results_dir is None else results_dir
+    os.makedirs(results_dir, exist_ok=True)
     frames = {}
     for name, rows in outputs.items():
         frames[name] = pd.DataFrame(rows)
-        frames[name].to_csv(os.path.join(report.RESULTS_DIR, f"{name}.csv"), index=False)
+        frames[name].to_csv(os.path.join(results_dir, f"{name}.csv"), index=False)
     return frames
 
 

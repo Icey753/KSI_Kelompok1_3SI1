@@ -242,4 +242,4 @@ Tes mencakup test vector resmi AES-GCM (NIST) dan Ascon-AEAD128 (1089 vektor dar
 - **Chunked:** file 8 MB dienkripsi per chunk (4 KB, 64 KB, 1 MB, utuh). Tiap chunk membawa tag 16 byte dan AD berisi indeks chunk, sehingga penukaran urutan atau pemotongan aliran terdeteksi.
 - **Akselerasi:** `AES-GCM` (dengan AES-NI), `AES-GCM-noNI` (opsi `use_aesni=False` pada pycryptodome), dan `Ascon-128`, untuk menjelaskan mengapa hasil di PC desktop berbeda dari literatur perangkat IoT.
 
-Dashboard (`python dashboard.py`) menampilkan ketiganya di bagian "Skenario Realistis".
+Dashboard (`python dashboard.py`) menampilkan ketiganya di bagian "Skenario Realistis". Tombol "Jalankan skenario (cepat)" di dashboard menyimpan hasilnya ke `output/results/quick/` dan tidak menimpa hasil lengkap dari `python -m src.scenarios`.

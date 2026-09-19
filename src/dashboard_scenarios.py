@@ -135,10 +135,10 @@ def register_scenarios_callbacks(app) -> None:
     def run_scenarios(n_clicks):
         if not n_clicks:
             raise PreventUpdate
-        frames = run_and_save_scenarios(**QUICK)
+        frames = run_and_save_scenarios(**QUICK, results_dir=str(RESULTS_DIR / "quick"))
         return (
             build_small_message_figure(frames["small_messages"]),
             build_chunked_figure(frames["chunked"]),
             build_acceleration_figure(frames["acceleration"]),
-            "Skenario cepat selesai dan hasil disimpan ke output/results/.",
+            "Skenario cepat selesai. Hasil disimpan ke output/results/quick/ (hasil lengkap di output/results tidak ditimpa).",
         )
