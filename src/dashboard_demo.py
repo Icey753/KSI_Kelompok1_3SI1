@@ -205,6 +205,16 @@ def _warn(message: str) -> html.Div:
     return html.Div(message, style={"color": "#fbbf24"})
 
 
+def _run_image_demo(algorithm, upload_state) -> html.Div:
+    if not upload_state or upload_state.get("file_type") != "image":
+        return _warn("Unggah file gambar (PNG/JPG/WEBP/GIF/BMP) di bagian upload terlebih dahulu.")
+    try:
+        result = image_encryption_demo(algorithm, upload_state["file_path"])
+    except (OSError, ValueError) as error:
+        return _warn(f"Gambar tidak bisa dibaca: {error}")
+    return render_images(result)
+
+
 def _source_note(source: str) -> html.Div:
     return html.Div(f"Sumber: {source}", style={"color": "#94a3b8", "marginBottom": "0.5rem"})
 
@@ -269,6 +279,4 @@ def register_demo_callbacks(app) -> None:
     def run_image(n_clicks, algorithm, upload_state):
         if not n_clicks:
             raise PreventUpdate
-        if not upload_state or upload_state.get("file_type") != "image":
-            return _warn("Unggah file gambar (PNG/JPG/WEBP/GIF/BMP) di bagian upload terlebih dahulu.")
-        return render_images(image_encryption_demo(algorithm, upload_state["file_path"]))
+        return _run_image_demo(algorithm, upload_state)

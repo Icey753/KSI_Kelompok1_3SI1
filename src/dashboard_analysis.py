@@ -117,7 +117,7 @@ def register_analysis_callbacks(app) -> None:
         if not n_clicks:
             raise PreventUpdate
         summary = run_and_save_sweep(iterations=20)
-        return build_sweep_figure(summary), "Sweep selesai (20 iterasi) dan disimpan ke output/results/size_sweep_summary.csv."
+        return build_sweep_figure(summary), "Sweep selesai (20 iterasi) dan disimpan ke output/results/size_sweep_summary.csv. Muat ulang (restart) server dashboard agar grafik terbaru juga tampil setelah refresh halaman."
 
     @app.callback(
         Output("analysis-download", "data"),

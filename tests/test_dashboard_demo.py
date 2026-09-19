@@ -4,6 +4,7 @@ import pytest
 
 from src.dashboard_demo import (
     DEFAULT_SAMPLE,
+    _run_image_demo,
     build_demo_section,
     load_plaintext,
     render_nonce_reuse,
@@ -101,3 +102,38 @@ def test_dashboard_builds_with_demo_section():
 
     app = build_dash_app(None)
     assert "demo-tamper-run" in _ids(app.layout)
+
+
+def _has_img(node) -> bool:
+    if type(node).__name__ == "Img":
+        return True
+    children = getattr(node, "children", None)
+    if isinstance(children, (list, tuple)):
+        return any(_has_img(child) for child in children)
+    return children is not None and not isinstance(children, str) and _has_img(children)
+
+
+@pytest.mark.parametrize("state", [None, {"file_type": "json", "file_path": "x.json"}])
+def test_run_image_demo_warns_when_no_image_upload(state):
+    assert "Unggah file gambar" in _text(_run_image_demo("AES-GCM", state))
+
+
+def test_run_image_demo_warns_when_file_missing(tmp_path):
+    state = {"file_type": "image", "file_path": str(tmp_path / "hilang.png")}
+    assert "Gambar tidak bisa dibaca" in _text(_run_image_demo("AES-GCM", state))
+
+
+def test_run_image_demo_warns_when_image_corrupt(tmp_path):
+    bad = tmp_path / "x.png"
+    bad.write_bytes(b"ini bukan gambar")
+    state = {"file_type": "image", "file_path": str(bad)}
+    assert "Gambar tidak bisa dibaca" in _text(_run_image_demo("AES-GCM", state))
+
+
+def test_run_image_demo_renders_images_for_valid_image(tmp_path):
+    from PIL import Image
+
+    path = tmp_path / "ok.png"
+    Image.new("RGB", (8, 8), (10, 20, 30)).save(path)
+    state = {"file_type": "image", "file_path": str(path)}
+    assert _has_img(_run_image_demo("AES-GCM", state))

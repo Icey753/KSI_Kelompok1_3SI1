@@ -151,6 +151,10 @@ Dashboard ini mendukung:
 - melihat preview file, ringkasan hasil, dan grafik perbandingan
 - mengunduh ciphertext Base64 dan metadata hasil enkripsi
 - menyimpan hasil benchmark upload ke CSV baru di `output/results/`
+- Demo Interaktif: uji tamper (balik 1 bit pada ciphertext/tag/nonce/AD), enkripsi lalu dekripsi balik dengan hash SHA-256, demo bahaya nonce dipakai ulang, dan gambar asli vs ciphertext
+- Analisis Ukuran Data dan Lingkungan: grafik size sweep dengan titik potong latensi Ascon vs AES-GCM, panel info lingkungan, tombol jalankan sweep, dan unduh CSV
+
+Grafik sweep dan panel lingkungan dimuat saat server dashboard dijalankan, jadi restart server dashboard untuk melihat file terbaru setelah menjalankan `python -m src.sweep`.
 
 ## Output
 
