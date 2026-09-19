@@ -2,7 +2,10 @@ import os
 import sys
 from src.data_prep import create_directories, generate_json_dataset, generate_image_dataset
 from src.benchmark import run_single_file_benchmark
-from src.report import save_benchmark_results
+from src.report import save_benchmark_results, save_raw_samples
+from src.env_info import save_env_info
+from src.sweep import run_and_save_sweep
+from src.sweep_charts import generate_boxplot, generate_sweep_chart
 from src.visualize import generate_static_charts
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -87,6 +90,19 @@ def main():
     
     # 5. Buat Grafik Statis
     generate_static_charts(csv_path)
+
+    # 6. Statistik tambahan: sampel mentah, boxplot, info lingkungan, size sweep
+    charts_dir = os.path.join(BASE_DIR, "output", "charts")
+    results_dir = os.path.join(BASE_DIR, "output", "results")
+    raw_path = save_raw_samples(all_results)
+    generate_boxplot(raw_path, os.path.join(charts_dir, "latency_boxplot.png"))
+    save_env_info()
+    print("\nMenjalankan size sweep 1 KB - 10 MB ...")
+    run_and_save_sweep()
+    generate_sweep_chart(
+        os.path.join(results_dir, "size_sweep_summary.csv"),
+        os.path.join(charts_dir, "size_sweep.png"),
+    )
     
     print("\n=======================================================")
     print("               Pipeline Sukses Selesai!               ")

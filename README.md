@@ -207,3 +207,17 @@ Rencana pengujian mengikuti ukuran file berikut:
 - Gambar kecil, sedang, besar
 
 Jumlah iterasi pada implementasi saat ini disesuaikan agar pipeline tetap realistis untuk dijalankan di satu mesin.
+
+## Pengujian dan Validasi
+
+```
+python -m pytest -v
+```
+
+Tes mencakup test vector resmi AES-GCM (NIST) dan Ascon-AEAD128 (1089 vektor dari `native/ascon/ascon-c`).
+
+**Catatan varian Ascon:** backend C yang dimuat (`libcrypto_aead_asconaead128_ref.dll`) mengimplementasikan Ascon-AEAD128 dari NIST SP 800-232. Library Python `ascon` dengan `variant="Ascon-128"` adalah Ascon-128 v1.2 (varian berbeda, tidak kompatibel). Kolom `Backend` di CSV dan `output/results/environment.json` mencatat backend yang dipakai.
+
+## Size sweep
+
+`python -m src.sweep` mengukur ukuran 1 KB sampai 10 MB (JSON dan biner) dan mencetak titik potong latensi Ascon vs AES-GCM. Hasil: `output/results/size_sweep*.csv` dan `output/charts/size_sweep.png`.
