@@ -12,6 +12,7 @@ from dash.dependencies import Input, Output, State
 from dash.exceptions import PreventUpdate
 
 from src.benchmark import run_uploaded_file_benchmark
+from src.dashboard_demo import build_demo_section, register_demo_callbacks
 from src.report import save_benchmark_results
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -676,6 +677,7 @@ def build_dash_app(csv_path: str | None) -> dash.Dash:
                 ],
             ),
             html.Div(id="artifact-panel"),
+            build_demo_section(),
             html.Div(
                 style={
                     "backgroundColor": "#1e293b",
@@ -960,4 +962,5 @@ def build_dash_app(csv_path: str | None) -> dash.Dash:
             raise PreventUpdate
         return _send_text(artifact["metadata_path"], artifact["metadata_filename"])
 
+    register_demo_callbacks(app)
     return app
