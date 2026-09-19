@@ -61,6 +61,12 @@ Pipeline dibagi menjadi 5 fase:
 5. **Visualizer**
    - Membuat grafik statis dan dashboard interaktif.
 
+## Diagram Alur Kode
+
+![Alur kode Cipher Benchmark](assets/codeflow.png)
+
+`main.py` memastikan dataset ada (memanggil `data_prep.py` bila belum), lalu `benchmark.py` menjalankan AES-GCM dan Ascon-128 pada plaintext yang sama. `cipher_ascon.py` memanggil DLL ascon-c lewat `ctypes`, dengan fallback ke library Python `ascon`. Hasil masuk ke CSV lewat `report.py`, lalu dibaca `visualize.py` (grafik PNG) dan `dashboard.py` (Dash).
+
 ## Alur Proses
 
 1. `main.py` mengecek apakah dataset sudah tersedia.
