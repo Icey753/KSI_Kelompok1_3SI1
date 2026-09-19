@@ -60,9 +60,11 @@ def test_nonce_reuse_aes_leaks_everything():
     assert result["recovered_matches_b"] is True
 
 
-def test_nonce_reuse_ascon_leaks_only_first_block():
+def test_nonce_reuse_ascon_leaks_first_block_but_not_everything():
     result = nonce_reuse_demo("Ascon-128", b"A" * 64, b"B" * 64)
-    assert result["leaked_bytes"] == 16
+    # first rate block (16 bytes) always leaks; bytes after it match only by chance (~1/256 each)
+    assert 16 <= result["leaked_bytes"] < result["compared_bytes"]
+    assert result["leak_fraction"] < 1.0
     assert result["recovered_matches_b"] is True
 
 
