@@ -1,9 +1,10 @@
+import math
 import os
 import time
 
 import numpy as np
 
-from src.aead import ALL_VARIANTS, NONCE_LEN, seal
+from src.aead import ALL_VARIANTS, NONCE_LEN, TAG_LEN, open_sealed, seal
 
 AD = b"scenario"
 SMALL_MESSAGE_SIZES = (64, 256, 1024, 4096)
@@ -61,4 +62,84 @@ def run_acceleration_scenario(sizes=ACCEL_SIZES, iterations: int = 20, warm_ups:
                 seal(algorithm, key, nonce, AD, data)
                 times_ms.append((time.perf_counter() - start) * 1000)
             rows.append({"Algorithm": algorithm, "SizeBytes": size, "EncMedianMs": float(np.median(times_ms))})
+    return rows
+
+
+def _chunk_nonce(base_nonce: bytes, index: int) -> bytes:
+    return base_nonce[:-8] + index.to_bytes(8, "big")
+
+
+def _chunk_ad(index: int, is_last: bool) -> bytes:
+    return AD + index.to_bytes(8, "big") + (b"\x01" if is_last else b"\x00")
+
+
+def encrypt_chunked(algorithm: str, key: bytes, base_nonce: bytes, data: bytes, chunk_size: int) -> list[tuple[bytes, bytes]]:
+    if chunk_size <= 0:
+        raise ValueError("chunk_size harus positif")
+    count = max(1, math.ceil(len(data) / chunk_size))
+    return [
+        seal(
+            algorithm,
+            key,
+            _chunk_nonce(base_nonce, i),
+            _chunk_ad(i, i == count - 1),
+            data[i * chunk_size : (i + 1) * chunk_size],
+        )
+        for i in range(count)
+    ]
+
+
+def decrypt_chunked(algorithm: str, key: bytes, base_nonce: bytes, chunks: list[tuple[bytes, bytes]]) -> bytes | None:
+    parts = []
+    for i, (ciphertext, tag) in enumerate(chunks):
+        plaintext = open_sealed(
+            algorithm, key, _chunk_nonce(base_nonce, i), _chunk_ad(i, i == len(chunks) - 1), ciphertext, tag
+        )
+        if plaintext is None:
+            return None
+        parts.append(plaintext)
+    return b"".join(parts)
+
+
+def run_chunked_scenario(
+    total_bytes: int = 8 * 1024 * 1024,
+    chunk_sizes=(4096, 65536, 1048576, None),
+    iterations: int = 10,
+    warm_ups: int = 2,
+) -> list[dict]:
+    data = os.urandom(total_bytes)
+    rows: list[dict] = []
+    for algorithm in ALL_VARIANTS:
+        key, base_nonce = os.urandom(16), os.urandom(NONCE_LEN[algorithm])
+        for requested in chunk_sizes:
+            chunk_size = total_bytes if requested is None else requested
+            for _ in range(warm_ups):
+                decrypt_chunked(algorithm, key, base_nonce, encrypt_chunked(algorithm, key, base_nonce, data, chunk_size))
+
+            enc_ms, dec_ms = [], []
+            chunks = []
+            for _ in range(iterations):
+                start = time.perf_counter()
+                chunks = encrypt_chunked(algorithm, key, base_nonce, data, chunk_size)
+                enc_ms.append((time.perf_counter() - start) * 1000)
+                start = time.perf_counter()
+                decrypted = decrypt_chunked(algorithm, key, base_nonce, chunks)
+                dec_ms.append((time.perf_counter() - start) * 1000)
+            assert decrypted == data, "Dekripsi chunked tidak cocok dengan data asli"
+
+            overhead = TAG_LEN * len(chunks) + len(base_nonce)
+            enc_median = float(np.median(enc_ms))
+            rows.append(
+                {
+                    "Algorithm": algorithm,
+                    "TotalBytes": total_bytes,
+                    "ChunkSizeBytes": chunk_size,
+                    "Chunks": len(chunks),
+                    "EncMedianMs": enc_median,
+                    "DecMedianMs": float(np.median(dec_ms)),
+                    "OverheadBytes": overhead,
+                    "OverheadPct": overhead / total_bytes * 100,
+                    "ThroughputMBps": (total_bytes / 1e6) / (enc_median / 1000),
+                }
+            )
     return rows
