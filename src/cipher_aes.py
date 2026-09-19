@@ -1,7 +1,7 @@
 from Crypto.Cipher import AES
 import os
 
-def aes_gcm_encrypt(key: bytes, nonce: bytes, ad: bytes, plaintext: bytes) -> tuple[bytes, bytes]:
+def aes_gcm_encrypt(key: bytes, nonce: bytes, ad: bytes, plaintext: bytes, use_aesni: bool = True) -> tuple[bytes, bytes]:
     """
     Encrypts plaintext using AES-GCM.
     
@@ -14,13 +14,13 @@ def aes_gcm_encrypt(key: bytes, nonce: bytes, ad: bytes, plaintext: bytes) -> tu
     Returns:
         tuple[bytes, bytes]: (ciphertext, auth_tag)
     """
-    cipher = AES.new(key, AES.MODE_GCM, nonce=nonce)
+    cipher = AES.new(key, AES.MODE_GCM, nonce=nonce, use_aesni=use_aesni)
     if ad:
         cipher.update(ad)
     ciphertext, tag = cipher.encrypt_and_digest(plaintext)
     return ciphertext, tag
 
-def aes_gcm_decrypt(key: bytes, nonce: bytes, ad: bytes, ciphertext: bytes, tag: bytes) -> bytes | None:
+def aes_gcm_decrypt(key: bytes, nonce: bytes, ad: bytes, ciphertext: bytes, tag: bytes, use_aesni: bool = True) -> bytes | None:
     """
     Decrypts and verifies ciphertext using AES-GCM.
     
@@ -34,7 +34,7 @@ def aes_gcm_decrypt(key: bytes, nonce: bytes, ad: bytes, ciphertext: bytes, tag:
     Returns:
         bytes: Decrypted plaintext if verification succeeds, None otherwise.
     """
-    cipher = AES.new(key, AES.MODE_GCM, nonce=nonce)
+    cipher = AES.new(key, AES.MODE_GCM, nonce=nonce, use_aesni=use_aesni)
     if ad:
         cipher.update(ad)
     try:
