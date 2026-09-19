@@ -26,6 +26,7 @@ def save_benchmark_results(results_list: list[dict], filename: str = "benchmark_
     return output_path
 
 def save_raw_samples(results_list: list[dict], filename: str = "raw_samples.csv") -> str:
+    """Write per-iteration latency samples ("long" format) to RESULTS_DIR/filename."""
     os.makedirs(RESULTS_DIR, exist_ok=True)
     records = []
     for row in results_list:

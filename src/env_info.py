@@ -15,6 +15,8 @@ DEFAULT_PATH = os.path.join(
 
 
 def measure_aesni_speedup(size: int = 1 << 20, repeats: int = 5) -> float:
+    """Ratio of AES-GCM time without/with AES-NI; disables AES-NI for the AES block cipher only (use_aesni=False).
+    pycryptodome picks its GHASH/CLMUL implementation independently, so this understates the full hardware-acceleration effect."""
     data, key, nonce = os.urandom(size), os.urandom(16), os.urandom(12)
 
     def median_seconds(use_aesni: bool) -> float:

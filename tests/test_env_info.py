@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 from src.env_info import collect_env_info, save_env_info
 
@@ -12,4 +13,4 @@ def test_collect_env_info_keys_and_speedup():
 
 def test_save_env_info_writes_json(tmp_path):
     path = save_env_info(str(tmp_path / "env.json"))
-    assert json.loads(open(path, encoding="utf-8").read())["ascon_backend"]
+    assert json.loads(Path(path).read_text(encoding="utf-8"))["ascon_backend"]

@@ -61,8 +61,9 @@ VARIANT = (
 )
 
 
-def _to_ubyte_buffer(data: bytes):
-    return (ctypes.c_ubyte * len(data)).from_buffer_copy(data)
+def _as_ubyte_ptr(data: bytes):
+    """Zero-copy pointer to a bytes object; safe because the C reference code never writes to inputs."""
+    return ctypes.cast(ctypes.c_char_p(data), ctypes.POINTER(ctypes.c_ubyte))
 
 def ascon_128_encrypt(key: bytes, nonce: bytes, ad: bytes, plaintext: bytes) -> bytes:
     """
@@ -85,13 +86,13 @@ def ascon_128_encrypt(key: bytes, nonce: bytes, ad: bytes, plaintext: bytes) -> 
     result = _ASCON_C.crypto_aead_encrypt(
         ctypes.cast(output, ctypes.POINTER(ctypes.c_ubyte)),
         byref(output_length),
-        _to_ubyte_buffer(plaintext),
+        _as_ubyte_ptr(plaintext),
         len(plaintext),
-        _to_ubyte_buffer(ad) if ad else None,
+        _as_ubyte_ptr(ad) if ad else None,
         len(ad),
         None,
-        _to_ubyte_buffer(nonce),
-        _to_ubyte_buffer(key),
+        _as_ubyte_ptr(nonce),
+        _as_ubyte_ptr(key),
     )
     if result != 0:
         raise RuntimeError("Ascon C backend encryption failed")
@@ -122,12 +123,12 @@ def ascon_128_decrypt(key: bytes, nonce: bytes, ad: bytes, ciphertext_with_tag: 
         ctypes.cast(output, ctypes.POINTER(ctypes.c_ubyte)),
         byref(output_length),
         None,
-        _to_ubyte_buffer(ciphertext_with_tag),
+        _as_ubyte_ptr(ciphertext_with_tag),
         len(ciphertext_with_tag),
-        _to_ubyte_buffer(ad) if ad else None,
+        _as_ubyte_ptr(ad) if ad else None,
         len(ad),
-        _to_ubyte_buffer(nonce),
-        _to_ubyte_buffer(key),
+        _as_ubyte_ptr(nonce),
+        _as_ubyte_ptr(key),
     )
     if result != 0:
         return None

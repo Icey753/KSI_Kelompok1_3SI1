@@ -6,6 +6,7 @@ from scipy.stats import mannwhitneyu
 
 
 def ci95_halfwidth(samples: Sequence[float]) -> float:
+    """Half-width of the 95% normal-approximation CI of the MEAN (not the median); assumes n >= 30."""
     n = len(samples)
     if n < 2:
         return 0.0

@@ -221,3 +221,11 @@ Tes mencakup test vector resmi AES-GCM (NIST) dan Ascon-AEAD128 (1089 vektor dar
 ## Size sweep
 
 `python -m src.sweep` mengukur ukuran 1 KB sampai 10 MB (JSON dan biner) dan mencetak titik potong latensi Ascon vs AES-GCM. Hasil: `output/results/size_sweep*.csv` dan `output/charts/size_sweep.png`.
+
+## Batasan Pengukuran
+
+- **Salinan output pada pembungkus Ascon.** Pembungkus Ascon (ctypes) masih menyalin output (alokasi buffer + `output.raw`), sedangkan AES-GCM (pycryptodome) tidak. Perkiraan porsi overhead ini terhadap latensi enkripsi Ascon (median, 200 pengulangan): sekitar 2,5% pada 16 KB, 14,6% pada 1 MB, dan 12,9% pada 10 MB. Salinan input sudah dihilangkan (zero-copy); sebelumnya salinan itu menambah sekitar 2,6% (16 KB), 6,9% (1 MB), dan 5,6% (10 MB). Angka ini pengukuran satu mesin, bukan konstanta.
+- **Urutan pengujian tetap.** Untuk setiap file, AES-GCM dijalankan sebelum Ascon (tanpa interleaving), sehingga drift frekuensi CPU bisa memengaruhi selisih kecil di sekitar titik potong.
+- **`aesni_speedup`** hanya mengukur efek AES-NI pada block cipher (`use_aesni=False`). GHASH/CLMUL dipilih terpisah oleh pycryptodome, jadi angka ini meremehkan efek akselerasi hardware penuh.
+- **`EncLatencyCI95Ms` / `DecLatencyCI95Ms`** adalah setengah-lebar CI 95% pendekatan normal untuk RATA-RATA (bukan median), dengan asumsi n >= 30.
+- **Test vector Ascon (1089 vektor)** dibaca dari `native/ascon/ascon-c/crypto_aead/asconaead128/LWC_AEAD_KAT_128_128.txt`. Di git hanya DLL `native/ascon/bin/libcrypto_aead_asconaead128_ref.dll` (dan `native/ascon/README.md`) yang tercatat; folder sumber `native/ascon/ascon-c` (termasuk file KAT) belum ada di git. Jika file KAT tidak ada, dua tes KAT Ascon di-SKIP (bukan gagal). Untuk mengaktifkannya, letakkan sumber ascon-c di `native/ascon/ascon-c`.
