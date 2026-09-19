@@ -56,6 +56,9 @@ def _load_c_backend():
 
 _ASCON_C = _load_c_backend()
 BACKEND = "C (ascon-c ref)" if _ASCON_C is not None else "Python (ascon lib)"
+VARIANT = (
+    "Ascon-AEAD128 (NIST SP 800-232)" if _ASCON_C is not None else "Ascon-128 v1.2 (ascon lib)"
+)
 
 
 def _to_ubyte_buffer(data: bytes):
