@@ -18,4 +18,5 @@ if __name__ == "__main__":
     print("Akses dashboard interaktif di browser Anda:")
     print("http://127.0.0.1:8050/")
     print("=======================================================\n")
-    app.run(debug=True, port=8050)
+    # debug exposes the Werkzeug console; opt in with DASH_DEBUG=1
+    app.run(debug=os.environ.get("DASH_DEBUG") == "1", port=8050)

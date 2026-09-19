@@ -1,0 +1,241 @@
+/* Colors and the font stack come from src/dashboard_theme.py as --variables on :root. */
+
+/* Inter, self-hosted (SIL OFL 1.1, see fonts/OFL-Inter.txt): variable 400-700, Latin subset. */
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("fonts/inter-latin-var.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308,
+    U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* Arial resized to Inter's metrics, so text does not jump when Inter arrives. */
+@font-face {
+  font-family: "Inter Fallback";
+  src: local("Arial");
+  size-adjust: 107.4%;
+  ascent-override: 90.2%;
+  descent-override: 22.5%;
+  line-gap-override: 0%;
+}
+
+/* Type roles: display / title / heading / body / small. Spacing: 0.5 / 1 / 1.5 / 3rem. */
+:root {
+  --fs-display: clamp(1.75rem, 5vw, 2.25rem);
+  --fs-title: 1.5rem;
+  --fs-heading: 1.125rem;
+  --fs-body: 1rem;
+  --fs-small: 0.875rem;
+  --lh-body: 1.55;
+  --lh-tight: 1.25;
+  --gap: 1rem;
+  --section-gap: 3rem;
+}
+
+body { background: var(--bg); margin: 0; }
+
+/* Light text on a dark surface reads tighter than it is: a little more leading and tracking. */
+.page {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  letter-spacing: 0.005em;
+  min-height: 100vh;
+  box-sizing: border-box;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: clamp(1rem, 4vw, 2rem);
+}
+
+h1, h2, h3, h4 { line-height: var(--lh-tight); text-wrap: balance; }
+p { text-wrap: pretty; }
+p.muted { max-width: 68ch; }
+
+.hero__title {
+  font-size: var(--fs-display);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0 0 0.65rem;
+}
+.section__title { font-size: var(--fs-title); font-weight: 700; letter-spacing: -0.01em; margin: 0 0 0.25rem; }
+.card-title { font-size: var(--fs-heading); font-weight: 600; margin: 0 0 0.75rem; }
+
+/* Surfaces */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 1.25rem;
+}
+.card--inset { background: var(--bg); }
+.hero {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 2rem;
+}
+
+/* Page structure: hero, then sections. Gap inside a group, more between groups. */
+.section { margin-top: var(--section-gap); }
+.hero + .section { margin-top: 2rem; }
+.section__head { margin-bottom: var(--gap); }
+.section__lead { margin: 0; }
+.stack { display: flex; flex-direction: column; gap: var(--gap); }
+.stack > :empty { display: none; }
+
+.grid { display: grid; gap: var(--gap); grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 720px) {
+  .grid--pair,
+  .grid--triple { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .grid--triple > :last-child { grid-column: 1 / -1; }
+}
+@media (min-width: 1000px) {
+  .grid--split { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); align-items: start; }
+}
+@media (min-width: 1100px) {
+  .grid--triple { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .grid--triple > :last-child { grid-column: auto; }
+}
+.grid--metrics { grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr)); }
+
+/* Hero jump links */
+.chips { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1.25rem; }
+.chip {
+  color: var(--text-2);
+  text-decoration: none;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  padding: 0.4rem 0.9rem;
+  font-size: var(--fs-small);
+}
+.chip:hover { color: var(--text); border-color: var(--aes); }
+
+/* Toolbars and the provenance line */
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--gap) 1.5rem; }
+.toolbar__filter { flex: 0 0 min(260px, 100%); }
+.toolbar__note { flex: 1 1 280px; margin: 0; }
+.source-line { color: var(--text-muted); font-size: var(--fs-small); margin: 0 0 0.75rem; overflow-wrap: anywhere; }
+.source-line strong { color: var(--text); font-weight: 600; }
+
+/* Accent: set on a wrapper, consumed by children (--accent). Color means an algorithm. */
+.tone-aes { --accent: var(--aes); }
+.tone-ascon { --accent: var(--ascon); }
+.tone-title { color: var(--accent); }
+
+/* Metric cards: long file names wrap instead of clipping; digits align. */
+.metric__label { color: var(--text-muted); font-size: var(--fs-small); letter-spacing: 0.02em; }
+.metric__value {
+  font-size: var(--fs-title);
+  font-weight: 700;
+  line-height: var(--lh-tight);
+  margin-top: 0.25rem;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Buttons: dark text on --primary is 4.9:1 (light text was 3.5:1) */
+.btn {
+  background: var(--primary);
+  color: var(--bg);
+  border: none;
+  border-radius: 10px;
+  padding: 0.6rem 1rem;
+  min-height: 44px;
+  font-family: inherit;
+  font-size: var(--fs-small);
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 120ms ease-out;
+}
+.btn:hover:not(:disabled) { filter: brightness(1.12); }
+.btn:active:not(:disabled) { filter: brightness(0.94); }
+.btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.btn--pill { border-radius: 999px; padding: 0.7rem 1rem; font-weight: 700; }
+.btn--go { background: var(--go); color: var(--bg); padding: 0.85rem 1.2rem; font-weight: 700; }
+.btn--accent { background: var(--accent); color: var(--bg); }
+.btn--outline { background: var(--bg); color: var(--text-soft); border: 1px solid var(--accent); }
+.btn-row { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+
+/* Forms: inputs stay at body size (16px also stops iOS from zooming on focus). */
+.field {
+  width: 100%;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.5rem;
+  box-sizing: border-box;
+  font-family: inherit;
+  font-size: var(--fs-body);
+}
+/* Dash 4 puts .field on a wrapper; its inner input needs real line height or descenders clip. */
+.field .dash-input-element {
+  height: auto;
+  min-height: 1.5rem;
+  padding: 0 0.25rem;
+  font: inherit;
+  line-height: 1.5;
+  color: inherit;
+  background: transparent;
+}
+.field-label { display: block; color: var(--text-2); font-size: var(--fs-small); margin: 0.5rem 0 0.25rem; }
+.dropzone {
+  width: 100%;
+  min-height: 130px;
+  box-sizing: border-box;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed var(--border-strong);
+  border-radius: 14px;
+  text-align: center;
+  background: var(--bg);
+  color: var(--text-soft);
+  cursor: pointer;
+}
+.dropzone:hover { border-color: var(--aes); }
+
+/* Keyboard focus: one visible ring for every control, native and Dash-rendered */
+:focus-visible {
+  outline: 2px solid var(--aes);
+  outline-offset: 2px;
+}
+.btn--accent:focus-visible,
+.btn--outline:focus-visible { outline-color: var(--text); }
+
+/* Dash's radio labels default to dark text meant for a light page */
+.dash-options-list-option { color: var(--text); }
+
+/* Touch: finger-sized targets, and no hover-only chart toolbar */
+@media (pointer: coarse) {
+  .field,
+  .dash-input-element,
+  .dash-dropdown { min-height: 44px; }
+  .dash-options-list-option { min-height: 44px; display: inline-flex; align-items: center; padding-right: 1rem; }
+  .modebar-container { display: none; }
+  .chip { min-height: 44px; display: inline-flex; align-items: center; padding: 0 1rem; }
+}
+
+@media (max-width: 480px) {
+  .hero { padding: 1.25rem; }
+}
+
+/* Text */
+.muted { color: var(--text-muted); }
+.muted--sm { font-size: var(--fs-small); }
+.mono {
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: var(--fs-small);
+  color: var(--text-2);
+  word-break: break-all;
+}
+.status { color: var(--text-2); }
+.status--ok { color: var(--ok); }
+.status--warn { color: var(--warn); }
+.status--error { color: var(--danger); }
+.verdict { font-size: var(--fs-heading); font-weight: 700; margin-bottom: 0.5rem; }

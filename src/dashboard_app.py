@@ -7,7 +7,8 @@ from pathlib import Path
 import dash
 import pandas as pd
 import plotly.graph_objects as go
-from dash import dcc, html, dash_table, ctx, no_update
+from dash import dcc, html, dash_table, no_update
+from dash.dash_table.Format import Format, Group, Scheme
 from dash.dependencies import Input, Output, State
 from dash.exceptions import PreventUpdate
 
@@ -15,12 +16,11 @@ from src.benchmark import run_uploaded_file_benchmark
 from src.dashboard_analysis import build_analysis_section, register_analysis_callbacks
 from src.dashboard_demo import build_demo_section, register_demo_callbacks
 from src.dashboard_scenarios import build_scenarios_section, register_scenarios_callbacks
+from src.dashboard_theme import ALGORITHM_COLORS, FONT_UI, TOKENS, chart_layout, root_css
+from src.dashboard_safety import MAX_UPLOAD_BYTES, UPLOADS_DIR, is_within_uploads, trusted_upload
 from src.report import save_benchmark_results
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-OUTPUT_DIR = BASE_DIR / "output"
-RESULTS_DIR = OUTPUT_DIR / "results"
-UPLOADS_DIR = OUTPUT_DIR / "uploads"
 
 EXPECTED_COLUMNS = [
     "Algorithm",
@@ -44,6 +44,13 @@ FILE_TYPE_LABELS = {
 }
 
 SIZE_ORDER = ["small", "medium", "large"]
+CHART_HEIGHT = 400  # px, reserved before the figure arrives, so charts do not shift the page
+
+# Same precision as the metric cards: 3 decimals for ms, 2 for percent.
+COUNT = Format(precision=0, scheme=Scheme.fixed, group=Group.yes)
+MILLIS = Format(precision=3, scheme=Scheme.fixed)
+PERCENT = Format(precision=2, scheme=Scheme.fixed)
+SIZE_LABELS = {"small": "Kecil", "medium": "Sedang", "large": "Besar"}
 
 
 def _safe_stem(file_name: str) -> str:
@@ -75,8 +82,26 @@ def _load_base_dataframe(csv_path: str | None) -> pd.DataFrame:
 
 def _decode_upload(contents: str) -> tuple[str, bytes]:
     header, encoded = contents.split(",", 1)
-    raw_bytes = base64.b64decode(encoded)
+    raw_bytes = base64.b64decode(encoded, validate=True)
     return header, raw_bytes
+
+
+def _display_path(path: str) -> str:
+    try:
+        return Path(path).resolve().relative_to(BASE_DIR).as_posix()
+    except ValueError:
+        return str(path)
+
+
+def _rejected(message: str, previous: dict | None):
+    """Upload refused: keep whatever was active, and say so."""
+    if previous and previous.get("input_file_name"):
+        message += f" File sebelumnya ({previous['input_file_name']}) tetap dipakai."
+    return no_update, no_update, _error(message)
+
+
+def _error(message: str) -> html.Div:
+    return html.Div(message, role="alert", className="status status--error")
 
 
 def _detect_file_type(filename: str, header: str) -> str | None:
@@ -125,7 +150,7 @@ def _make_preview(contents: str, filename: str, file_type: str, size_bytes: int)
                             "maxWidth": "100%",
                             "borderRadius": "12px",
                             "marginTop": "1rem",
-                            "border": "1px solid #334155",
+                            "border": "1px solid var(--border)",
                         },
                     ),
                     style={"marginTop": "0.75rem"},
@@ -143,8 +168,8 @@ def _make_preview(contents: str, filename: str, file_type: str, size_bytes: int)
                 preview_text,
                 style={
                     "whiteSpace": "pre-wrap",
-                    "backgroundColor": "#0f172a",
-                    "border": "1px solid #334155",
+                    "backgroundColor": "var(--bg)",
+                    "border": "1px solid var(--border)",
                     "borderRadius": "12px",
                     "padding": "1rem",
                     "marginTop": "1rem",
@@ -156,19 +181,10 @@ def _make_preview(contents: str, filename: str, file_type: str, size_bytes: int)
     )
 
 
-def _build_metric_card(label: str, value: str, accent: str) -> html.Div:
+def _build_metric_card(label: str, value: str) -> html.Div:
     return html.Div(
-        [
-            html.Div(label, style={"color": "#94a3b8", "fontSize": "0.85rem", "letterSpacing": "0.04em"}),
-            html.Div(value, style={"color": accent, "fontSize": "1.5rem", "fontWeight": "700", "marginTop": "0.35rem"}),
-        ],
-        style={
-            "backgroundColor": "#1e293b",
-            "border": "1px solid #334155",
-            "borderRadius": "16px",
-            "padding": "1.25rem",
-            "boxShadow": "0 8px 16px rgba(15, 23, 42, 0.25)",
-        },
+        [html.Div(label, className="metric__label"), html.Div(value, className="metric__value")],
+        className="card",
     )
 
 
@@ -180,48 +196,35 @@ def _build_metrics_panel(df: pd.DataFrame, state: dict | None) -> html.Div:
         file_name = state.get("input_file_name", file_name)
 
     if df.empty:
-        metrics = [
-            _build_metric_card("Sumber aktif", source_label, "#60a5fa"),
-            _build_metric_card("File aktif", file_name, "#f472b6"),
-            _build_metric_card("Rata-rata enc", "0.000 ms", "#34d399"),
-            _build_metric_card("Rata-rata dec", "0.000 ms", "#fbbf24"),
-            _build_metric_card("Overhead rata-rata", "0.00%", "#c084fc"),
-            _build_metric_card("Tamper pass", "0 / 0", "#e2e8f0"),
-        ]
-        return html.Div(
-            metrics,
-            style={
-                "display": "grid",
-                "gridTemplateColumns": "repeat(auto-fit, minmax(180px, 1fr))",
-                "gap": "1rem",
-                "marginBottom": "1.5rem",
-            },
-        )
-
-    avg_enc = df["EncLatencyMeanMs"].mean()
-    avg_dec = df["DecLatencyMeanMs"].mean()
-    avg_overhead = df["OverheadPct"].mean()
-    pass_count = int(df["TamperingIntegrityPassed"].fillna(False).astype(bool).sum())
-    total_rows = len(df)
-    pass_rate = (pass_count / total_rows) * 100 if total_rows else 0.0
+        enc = dec = overhead = tamper = "–"
+    else:
+        pass_count = int(df["TamperingIntegrityPassed"].fillna(False).astype(bool).sum())
+        total_rows = len(df)
+        pass_rate = (pass_count / total_rows) * 100 if total_rows else 0.0
+        enc = f"{df['EncLatencyMeanMs'].mean():.3f} ms"
+        dec = f"{df['DecLatencyMeanMs'].mean():.3f} ms"
+        overhead = f"{df['OverheadPct'].mean():.2f}%"
+        tamper = f"{pass_count} / {total_rows} ({pass_rate:.0f}%)"
 
     metrics = [
-        _build_metric_card("Sumber aktif", source_label, "#60a5fa"),
-        _build_metric_card("File aktif", file_name, "#f472b6"),
-        _build_metric_card("Rata-rata enc", f"{avg_enc:.3f} ms", "#34d399"),
-        _build_metric_card("Rata-rata dec", f"{avg_dec:.3f} ms", "#fbbf24"),
-        _build_metric_card("Overhead rata-rata", f"{avg_overhead:.2f}%", "#c084fc"),
-        _build_metric_card("Tamper pass", f"{pass_count} / {total_rows} ({pass_rate:.0f}%)", "#e2e8f0"),
+        _build_metric_card("Rata-rata enkripsi", enc),
+        _build_metric_card("Rata-rata dekripsi", dec),
+        _build_metric_card("Overhead rata-rata", overhead),
+        _build_metric_card("Lolos uji tamper", tamper),
     ]
-
     return html.Div(
-        metrics,
-        style={
-            "display": "grid",
-            "gridTemplateColumns": "repeat(auto-fit, minmax(180px, 1fr))",
-            "gap": "1rem",
-            "marginBottom": "1.5rem",
-        },
+        [
+            html.P(
+                [
+                    "Sumber data: ",
+                    html.Strong(source_label),
+                    " \u00b7 File aktif: ",
+                    html.Strong(file_name),
+                ],
+                className="source-line",
+            ),
+            html.Div(metrics, className="grid grid--metrics"),
+        ]
     )
 
 
@@ -241,11 +244,8 @@ def _select_active_dataframe(df: pd.DataFrame, selected_file_type: str | None) -
 def _empty_figure(title: str, message: str) -> go.Figure:
     fig = go.Figure()
     fig.update_layout(
-        template="plotly_dark",
-        paper_bgcolor="#1e293b",
-        plot_bgcolor="#1e293b",
+        **chart_layout(margin=dict(l=40, r=20, t=50, b=40)),
         title=title,
-        margin=dict(l=40, r=20, t=50, b=40),
         annotations=[
             dict(
                 text=message,
@@ -254,7 +254,7 @@ def _empty_figure(title: str, message: str) -> go.Figure:
                 xref="paper",
                 yref="paper",
                 showarrow=False,
-                font=dict(color="#cbd5e1", size=14),
+                font=dict(color=TOKENS["text_2"], size=14),
             )
         ],
     )
@@ -269,8 +269,8 @@ def _build_latency_figure(df: pd.DataFrame, column: str, error_column: str, titl
 
     fig = go.Figure()
     palette = {
-        "AES-GCM": ("#60a5fa", "#3b82f6"),
-        "Ascon-128": ("#f472b6", "#db2777"),
+        "AES-GCM": (ALGORITHM_COLORS["AES-GCM"], TOKENS["aes_strong"]),
+        "Ascon-128": (ALGORITHM_COLORS["Ascon-128"], TOKENS["ascon_strong"]),
     }
 
     for algorithm, (base_color, accent_color) in palette.items():
@@ -279,7 +279,7 @@ def _build_latency_figure(df: pd.DataFrame, column: str, error_column: str, titl
             continue
         fig.add_trace(
             go.Bar(
-                x=algo_df["SizeCategory"].astype(str).str.capitalize(),
+                x=algo_df["SizeCategory"].astype(str).map(lambda v: SIZE_LABELS.get(v, v)),
                 y=algo_df[column],
                 name=algorithm,
                 marker_color=base_color,
@@ -291,14 +291,9 @@ def _build_latency_figure(df: pd.DataFrame, column: str, error_column: str, titl
         return _empty_figure(title, "Tidak ada algoritma yang cocok dengan filter aktif.")
 
     fig.update_layout(
-        template="plotly_dark",
-        paper_bgcolor="#1e293b",
-        plot_bgcolor="#1e293b",
-        title=title,
-        margin=dict(l=40, r=20, t=50, b=40),
+        **chart_layout(height=CHART_HEIGHT, margin=dict(l=40, r=20, t=20, b=120)),
         xaxis_title="Kategori Ukuran",
         yaxis_title=y_axis_title,
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
     )
     return fig
 
@@ -309,8 +304,8 @@ def _build_overhead_figure(df: pd.DataFrame) -> go.Figure:
 
     fig = go.Figure()
     palette = {
-        "AES-GCM": "#60a5fa",
-        "Ascon-128": "#f472b6",
+        "AES-GCM": ALGORITHM_COLORS["AES-GCM"],
+        "Ascon-128": ALGORITHM_COLORS["Ascon-128"],
     }
 
     for algorithm, color in palette.items():
@@ -319,7 +314,7 @@ def _build_overhead_figure(df: pd.DataFrame) -> go.Figure:
             continue
         fig.add_trace(
             go.Bar(
-                x=algo_df["SizeCategory"].astype(str).str.capitalize(),
+                x=algo_df["SizeCategory"].astype(str).map(lambda v: SIZE_LABELS.get(v, v)),
                 y=algo_df["OverheadPct"],
                 name=algorithm,
                 marker_color=color,
@@ -332,120 +327,67 @@ def _build_overhead_figure(df: pd.DataFrame) -> go.Figure:
         return _empty_figure("Overhead Ciphertext", "Tidak ada algoritma yang cocok dengan filter aktif.")
 
     fig.update_layout(
-        template="plotly_dark",
-        paper_bgcolor="#1e293b",
-        plot_bgcolor="#1e293b",
-        title="Overhead Ciphertext",
-        margin=dict(l=40, r=20, t=50, b=40),
+        **chart_layout(height=CHART_HEIGHT, margin=dict(l=40, r=20, t=20, b=120)),
         xaxis_title="Kategori Ukuran",
         yaxis_title="Overhead (%)",
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
     )
     return fig
 
 
-def _artifact_card(algorithm: str, artifact: dict | None, accent: str) -> html.Div:
+def _artifact_card(algorithm: str, artifact: dict | None, tone: str) -> html.Div:
     if not artifact:
         return html.Div(
             [
-                html.H4(algorithm, style={"margin": "0 0 0.5rem 0", "color": accent}),
+                html.H4(algorithm, className="tone-title", style={"margin": "0 0 0.5rem 0", "fontSize": "1rem"}),
                 html.Div("Jalankan benchmark upload untuk mengaktifkan unduhan."),
             ],
-            style={
-                "backgroundColor": "#1e293b",
-                "border": "1px solid #334155",
-                "borderRadius": "16px",
-                "padding": "1.25rem",
-            },
+            className=f"card tone-{tone}",
         )
 
+    slug = algorithm.lower().replace("-", "_")
     return html.Div(
         [
-            html.H4(algorithm, style={"margin": "0 0 0.75rem 0", "color": accent}),
+            html.H4(algorithm, className="tone-title", style={"margin": "0 0 0.75rem 0", "fontSize": "1rem"}),
             html.Div(f"Ciphertext Base64: {artifact.get('ciphertext_filename', '-')}", style={"marginBottom": "0.4rem"}),
             html.Div(f"Metadata: {artifact.get('metadata_filename', '-')}", style={"marginBottom": "1rem"}),
             html.Div(
                 [
                     html.Button(
                         "Unduh Ciphertext Base64",
-                        id=f"download-{algorithm.lower().replace('-', '_')}-ciphertext",
+                        id=f"download-{slug}-ciphertext",
                         n_clicks=0,
-                        style={
-                            "backgroundColor": accent,
-                            "color": "#0f172a",
-                            "border": "none",
-                            "borderRadius": "999px",
-                            "padding": "0.7rem 1rem",
-                            "fontWeight": "700",
-                            "marginRight": "0.75rem",
-                            "cursor": "pointer",
-                        },
+                        className="btn btn--pill btn--accent",
                     ),
                     html.Button(
                         "Unduh Metadata",
-                        id=f"download-{algorithm.lower().replace('-', '_')}-metadata",
+                        id=f"download-{slug}-metadata",
                         n_clicks=0,
-                        style={
-                            "backgroundColor": "#0f172a",
-                            "color": "#e2e8f0",
-                            "border": f"1px solid {accent}",
-                            "borderRadius": "999px",
-                            "padding": "0.7rem 1rem",
-                            "fontWeight": "700",
-                            "cursor": "pointer",
-                        },
+                        className="btn btn--pill btn--outline",
                     ),
-                ]
+                ],
+                className="btn-row",
             ),
         ],
-        style={
-            "backgroundColor": "#1e293b",
-            "border": "1px solid #334155",
-            "borderRadius": "16px",
-            "padding": "1.25rem",
-        },
+        className=f"card tone-{tone}",
     )
 
 
 def _build_artifact_panel(state: dict | None) -> html.Div:
     if not state or not state.get("artifacts"):
-        return html.Div(
-            [
-                html.H3("Artefak Enkripsi", style={"margin": "0 0 0.5rem 0"}),
-                html.Div("Upload file lalu jalankan benchmark untuk membuat ciphertext dan metadata yang bisa diunduh."),
-            ],
-            style={
-                "backgroundColor": "#111827",
-                "border": "1px solid #334155",
-                "borderRadius": "18px",
-                "padding": "1.5rem",
-                "marginBottom": "1.5rem",
-            },
-        )
+        return html.Div()
 
     artifacts = state["artifacts"]
     return html.Div(
         [
-            html.H3("Artefak Enkripsi", style={"margin": "0 0 1rem 0"}),
+            html.H3("Artefak Enkripsi", className="card-title"),
             html.Div(
                 [
-                    _artifact_card("AES-GCM", artifacts.get("AES-GCM"), "#60a5fa"),
-                    _artifact_card("Ascon-128", artifacts.get("Ascon-128"), "#f472b6"),
+                    _artifact_card("AES-GCM", artifacts.get("AES-GCM"), "aes"),
+                    _artifact_card("Ascon-128", artifacts.get("Ascon-128"), "ascon"),
                 ],
-                style={
-                    "display": "grid",
-                    "gridTemplateColumns": "repeat(auto-fit, minmax(280px, 1fr))",
-                    "gap": "1rem",
-                },
+                className="grid grid--pair",
             ),
-        ],
-        style={
-            "backgroundColor": "#111827",
-            "border": "1px solid #334155",
-            "borderRadius": "18px",
-            "padding": "1.5rem",
-            "marginBottom": "1.5rem",
-        },
+        ]
     )
 
 
@@ -477,23 +419,20 @@ def _build_initial_state(csv_path: str | None) -> dict:
 def build_dash_app(csv_path: str | None) -> dash.Dash:
     app = dash.Dash(
         __name__,
-        external_stylesheets=[
-            "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
-        ],
+        title="Benchmark AES-GCM vs Ascon-128",
+        assets_folder=str(BASE_DIR / "assets"),
     )
     app.config.suppress_callback_exceptions = True
+    preload = '<link rel="preload" href="/assets/fonts/inter-latin-var.woff2" as="font" type="font/woff2" crossorigin>'
+    app.index_string = app.index_string.replace("<html>", '<html lang="id">').replace(
+        "</head>", f"{preload}<style>{root_css()}</style></head>"
+    )
 
     base_state = _build_initial_state(csv_path)
     base_df = _state_to_dataframe(base_state, pd.DataFrame(columns=EXPECTED_COLUMNS))
 
-    app.layout = html.Div(
-        style={
-            "backgroundColor": "#0f172a",
-            "color": "#f8fafc",
-            "fontFamily": "'Inter', sans-serif",
-            "minHeight": "100vh",
-            "padding": "2rem",
-        },
+    app.layout = html.Main(
+        className="page",
         children=[
             dcc.Store(id="upload-state"),
             dcc.Store(id="benchmark-state", data=base_state),
@@ -501,249 +440,228 @@ def build_dash_app(csv_path: str | None) -> dash.Dash:
             dcc.Download(id="download-aes-gcm-metadata"),
             dcc.Download(id="download-ascon-128-ciphertext"),
             dcc.Download(id="download-ascon-128-metadata"),
-            html.Div(
-                style={
-                    "background": "linear-gradient(135deg, #1e293b, #0f172a)",
-                    "border": "1px solid #334155",
-                    "borderRadius": "18px",
-                    "padding": "2rem",
-                    "marginBottom": "1.5rem",
-                    "boxShadow": "0 16px 30px rgba(15, 23, 42, 0.35)",
-                },
+            html.Header(
+                className="hero",
                 children=[
-                    html.H1(
-                        "AES-GCM vs Ascon-128 Benchmark Dashboard",
-                        style={
-                            "fontSize": "2.35rem",
-                            "fontWeight": "800",
-                            "margin": "0 0 0.65rem 0",
-                            "background": "linear-gradient(to right, #60a5fa, #f472b6)",
-                            "WebkitBackgroundClip": "text",
-                            "WebkitTextFillColor": "transparent",
-                        },
-                    ),
+                    html.H1("AES-GCM vs Ascon-128 Benchmark Dashboard", className="hero__title"),
                     html.P(
                         "Dashboard ini mendukung upload langsung file JSON atau gambar, menjalankan benchmark, lalu menyimpan ciphertext dan metadata yang bisa diunduh untuk demo.",
-                        style={"color": "#94a3b8", "fontSize": "1.05rem", "maxWidth": "900px", "margin": "0"},
+                        className="muted",
+                        style={"margin": "0"},
+                    ),
+                    html.Nav(
+                        [
+                            html.A("Benchmark File", href="#hasil", className="chip"),
+                            html.A("Demo Interaktif", href="#demo", className="chip"),
+                            html.A("Analisis Ukuran Data", href="#analisis", className="chip"),
+                            html.A("Skenario Realistis", href="#skenario", className="chip"),
+                        ],
+                        className="chips",
+                        **{"aria-label": "Lompat ke bagian"},
                     ),
                 ],
             ),
-            html.Div(
-                style={
-                    "display": "grid",
-                    "gridTemplateColumns": "repeat(auto-fit, minmax(280px, 1fr))",
-                    "gap": "1rem",
-                    "marginBottom": "1rem",
-                },
+            html.Section(
+                id="hasil",
+                className="section",
                 children=[
+                    html.Header(html.H2("Benchmark File", className="section__title"), className="section__head"),
                     html.Div(
-                        style={
-                            "backgroundColor": "#1e293b",
-                            "border": "1px solid #334155",
-                            "borderRadius": "16px",
-                            "padding": "1.25rem",
-                        },
+                        className="stack",
                         children=[
-                            html.H3("Upload File", style={"marginTop": 0}),
-                            dcc.Upload(
-                                id="upload-data",
-                                children=html.Div(
-                                    [
-                                        html.Div("Seret file JSON atau gambar ke sini"),
-                                        html.Div("atau klik untuk memilih file", style={"color": "#94a3b8", "fontSize": "0.95rem"}),
-                                    ]
-                                ),
-                                style={
-                                    "width": "100%",
-                                    "height": "130px",
-                                    "lineHeight": "130px",
-                                    "borderWidth": "2px",
-                                    "borderStyle": "dashed",
-                                    "borderColor": "#475569",
-                                    "borderRadius": "14px",
-                                    "textAlign": "center",
-                                    "backgroundColor": "#0f172a",
-                                    "color": "#e2e8f0",
-                                },
-                                multiple=False,
-                                accept=".json,.png,.jpg,.jpeg,.webp,.gif,.bmp",
-                            ),
-                            html.Div(id="upload-status", style={"marginTop": "0.85rem", "color": "#cbd5e1"}),
-                        ],
-                    ),
-                    html.Div(
-                        style={
-                            "backgroundColor": "#1e293b",
-                            "border": "1px solid #334155",
-                            "borderRadius": "16px",
-                            "padding": "1.25rem",
-                        },
-                        children=[
-                            html.H3("Aksi Benchmark", style={"marginTop": 0}),
                             html.Div(
-                                "Setelah file diunggah, tekan tombol di bawah untuk menjalankan AES-GCM dan Ascon-128 pada file yang sama.",
-                                style={"color": "#94a3b8", "marginBottom": "1rem"},
-                            ),
-                            html.Button(
-                                "Jalankan Benchmark",
-                                id="run-benchmark",
-                                n_clicks=0,
-                                style={
-                                    "backgroundColor": "#22c55e",
-                                    "color": "#0f172a",
-                                    "border": "none",
-                                    "borderRadius": "999px",
-                                    "padding": "0.85rem 1.2rem",
-                                    "fontWeight": "800",
-                                    "cursor": "pointer",
-                                },
-                            ),
-                            html.Div(id="benchmark-status", style={"marginTop": "0.85rem", "color": "#cbd5e1"}),
-                        ],
-                    ),
-                    html.Div(
-                        style={
-                            "backgroundColor": "#1e293b",
-                            "border": "1px solid #334155",
-                            "borderRadius": "16px",
-                            "padding": "1.25rem",
-                        },
-                        children=[
-                            html.H3("Filter Dashboard", style={"marginTop": 0}),
-                            html.Label("Tipe file", style={"display": "block", "marginBottom": "0.5rem", "color": "#cbd5e1"}),
-                            dcc.Dropdown(
-                                id="file-type-dropdown",
-                                options=[
-                                    {"label": "JSON", "value": "json"},
-                                    {"label": "Gambar", "value": "image"},
+                                className="grid grid--pair",
+                                children=[
+                                    html.Div(
+                                        className="card",
+                                        children=[
+                                            html.H3("Upload File", className="card-title"),
+                                            dcc.Upload(
+                                                id="upload-data",
+                                                children=html.Div(
+                                                    [
+                                                        html.Div("Seret file ke sini atau klik untuk memilih"),
+                                                        html.Div(
+                                                            f"JSON atau gambar (PNG, JPG, WEBP, GIF, BMP), maksimal {MAX_UPLOAD_BYTES // 1024 // 1024} MB",
+                                                            className="muted muted--sm",
+                                                        ),
+                                                    ]
+                                                ),
+                                                className="dropzone",
+                                                multiple=False,
+                                                accept=".json,.png,.jpg,.jpeg,.webp,.gif,.bmp",
+                                                max_size=MAX_UPLOAD_BYTES,
+                                            ),
+                                            html.Div(id="upload-status", role="status", className="status", style={"marginTop": "0.85rem"}),
+                                        ],
+                                    ),
+                                    html.Div(
+                                        className="card",
+                                        children=[
+                                            html.H3("Aksi Benchmark", className="card-title"),
+                                            html.P(
+                                                "Setelah file diunggah, tekan tombol di bawah untuk menjalankan AES-GCM dan Ascon-128 pada file yang sama.",
+                                                className="muted",
+                                                style={"margin": "0 0 1rem"},
+                                            ),
+                                            html.Button(
+                                                "Jalankan Benchmark",
+                                                id="run-benchmark",
+                                                n_clicks=0,
+                                                className="btn btn--pill btn--go",
+                                            ),
+                                            dcc.Loading(html.Div(id="benchmark-status", role="status", className="status", style={"marginTop": "0.85rem"})),
+                                        ],
+                                    ),
                                 ],
-                                value=_load_selected_file_type(base_state),
-                                clearable=False,
-                                style={"color": "#0f172a"},
+                            ),
+                            html.Div(id="upload-preview"),
+                            html.Div(
+                                className="toolbar",
+                                children=[
+                                    html.Div(
+                                        className="toolbar__filter",
+                                        children=[
+                                            html.Label("Tipe file", id="file-type-label", className="field-label"),
+                                            dcc.Dropdown(
+                                                id="file-type-dropdown",
+                                                options=[
+                                                    {"label": "JSON", "value": "json"},
+                                                    {"label": "Gambar", "value": "image"},
+                                                ],
+                                                value=_load_selected_file_type(base_state),
+                                                clearable=False,
+                                                style={"color": "var(--bg)"},
+                                            ),
+                                        ],
+                                    ),
+                                    html.P(
+                                        "Grafik dan tabel mengikuti tipe file yang dipilih. Jika hasil upload hanya punya satu tipe, itu yang ditampilkan.",
+                                        className="muted muted--sm toolbar__note",
+                                    ),
+                                ],
+                            ),
+                            html.Div(id="overview-metrics"),
+                            html.Div(
+                                className="grid grid--triple",
+                                children=[
+                                    html.Div(
+                                        className="card",
+                                        children=[
+                                            html.H3("Latensi Enkripsi", className="card-title"),
+                                            html.P("Batang lebih rendah berarti lebih cepat. Garis error: simpangan baku antar iterasi.", className="muted muted--sm", style={"marginTop": 0}),
+                                            dcc.Graph(id="encryption-latency-graph", style={"height": f"{CHART_HEIGHT}px"}),
+                                        ],
+                                    ),
+                                    html.Div(
+                                        className="card",
+                                        children=[
+                                            html.H3("Latensi Dekripsi", className="card-title"),
+                                            html.P("Sudah termasuk verifikasi tag autentikasi.", className="muted muted--sm", style={"marginTop": 0}),
+                                            dcc.Graph(id="decryption-latency-graph", style={"height": f"{CHART_HEIGHT}px"}),
+                                        ],
+                                    ),
+                                    html.Div(
+                                        className="card",
+                                        children=[
+                                            html.H3("Overhead Ciphertext", className="card-title"),
+                                            html.P("Tambahan ukuran ciphertext dibanding plaintext, dalam persen. Lebih rendah berarti lebih hemat.", className="muted muted--sm", style={"marginTop": 0}),
+                                            dcc.Graph(id="overhead-graph", style={"height": f"{CHART_HEIGHT}px"}),
+                                        ],
+                                    ),
+                                ],
                             ),
                             html.Div(
-                                "Grafik dan tabel akan mengikuti dataset aktif. Jika data upload hanya punya satu tipe file, dashboard akan menampilkan data tersebut otomatis.",
-                                style={"marginTop": "0.85rem", "color": "#94a3b8", "fontSize": "0.92rem"},
-                            ),
-                        ],
-                    ),
-                ],
-            ),
-            html.Div(id="upload-preview", style={"marginBottom": "1.5rem"}),
-            html.Div(id="overview-metrics"),
-            html.Div(
-                style={
-                    "display": "grid",
-                    "gridTemplateColumns": "repeat(auto-fit, minmax(320px, 1fr))",
-                    "gap": "1rem",
-                    "marginBottom": "1rem",
-                },
-                children=[
-                    html.Div(
-                        style={
-                            "backgroundColor": "#1e293b",
-                            "border": "1px solid #334155",
-                            "borderRadius": "18px",
-                            "padding": "1.25rem",
-                        },
-                        children=[
-                            html.H3("Latensi Enkripsi", style={"marginTop": 0}),
-                            dcc.Graph(id="encryption-latency-graph"),
-                        ],
-                    ),
-                    html.Div(
-                        style={
-                            "backgroundColor": "#1e293b",
-                            "border": "1px solid #334155",
-                            "borderRadius": "18px",
-                            "padding": "1.25rem",
-                        },
-                        children=[
-                            html.H3("Latensi Dekripsi", style={"marginTop": 0}),
-                            dcc.Graph(id="decryption-latency-graph"),
-                        ],
-                    ),
-                ],
-            ),
-            html.Div(
-                style={
-                    "backgroundColor": "#1e293b",
-                    "border": "1px solid #334155",
-                    "borderRadius": "18px",
-                    "padding": "1.25rem",
-                    "marginBottom": "1.5rem",
-                },
-                children=[
-                    html.H3("Overhead Ciphertext", style={"marginTop": 0}),
-                    dcc.Graph(id="overhead-graph"),
-                ],
-            ),
-            html.Div(id="artifact-panel"),
-            build_demo_section(),
-            build_analysis_section(),
-            build_scenarios_section(),
-            html.Div(
-                style={
-                    "backgroundColor": "#1e293b",
-                    "border": "1px solid #334155",
-                    "borderRadius": "18px",
-                    "padding": "1.25rem",
-                },
-                children=[
-                    html.H3("Tabel Hasil Benchmark", style={"marginTop": 0}),
-                    dash_table.DataTable(
+                                className="card",
+                                children=[
+                                    html.H3("Tabel Hasil Benchmark", className="card-title"),
+                                    dash_table.DataTable(
                         id="benchmark-table",
                         columns=[
-                            {"name": "Algorithm", "id": "Algorithm"},
-                            {"name": "Input File", "id": "InputFileName"},
-                            {"name": "File Type", "id": "FileType"},
-                            {"name": "Size Category", "id": "SizeCategory"},
-                            {"name": "Plaintext (Bytes)", "id": "PlaintextSizeBytes"},
-                            {"name": "Ciphertext (Bytes)", "id": "CiphertextSizeBytes"},
-                            {"name": "Mean Enc (ms)", "id": "EncLatencyMeanMs"},
-                            {"name": "Mean Dec (ms)", "id": "DecLatencyMeanMs"},
-                            {"name": "Overhead (Bytes)", "id": "OverheadBytes"},
-                            {"name": "Overhead (%)", "id": "OverheadPct"},
-                            {"name": "Tamper Test", "id": "TamperingIntegrityPassed"},
+                            {"name": "Algoritma", "id": "Algorithm"},
+                            {"name": "File input", "id": "InputFileName"},
+                            {"name": "Kategori ukuran", "id": "SizeCategory"},
+                            {"name": "Plaintext (byte)", "id": "PlaintextSizeBytes", "type": "numeric", "format": COUNT},
+                            {"name": "Ciphertext (byte)", "id": "CiphertextSizeBytes", "type": "numeric", "format": COUNT},
+                            {"name": "Enkripsi (ms)", "id": "EncLatencyMeanMs", "type": "numeric", "format": MILLIS},
+                            {"name": "Dekripsi (ms)", "id": "DecLatencyMeanMs", "type": "numeric", "format": MILLIS},
+                            {"name": "Overhead (byte)", "id": "OverheadBytes", "type": "numeric", "format": COUNT},
+                            {"name": "Overhead (%)", "id": "OverheadPct", "type": "numeric", "format": PERCENT},
+                            {"name": "Uji tamper", "id": "TamperingIntegrityPassed"},
                         ],
                         data=base_df.to_dict("records"),
                         style_header={
-                            "backgroundColor": "#0f172a",
-                            "color": "#cbd5e1",
+                            "backgroundColor": TOKENS["bg"],
+                            "color": TOKENS["text_2"],
                             "fontWeight": "bold",
-                            "border": "1px solid #334155",
+                            "border": f"1px solid {TOKENS['border']}",
                         },
+                        style_filter={
+                            "backgroundColor": TOKENS["bg"],
+                            "color": TOKENS["text"],
+                            "border": f"1px solid {TOKENS['border']}",
+                        },
+                        css=[
+                            {"selector": ".dash-filter input", "rule": f"color: {TOKENS['text']} !important; background-color: {TOKENS['bg']} !important;"},
+                            {"selector": ".dash-filter input::placeholder", "rule": f"color: {TOKENS['text_muted']} !important; opacity: 1 !important;"},
+                            {"selector": ".dash-filter--case", "rule": "display: none !important;"},
+                            {"selector": "td, th", "rule": "font-variant-numeric: tabular-nums;"},
+                        ],
                         style_cell={
-                            "backgroundColor": "#1e293b",
-                            "color": "#cbd5e1",
-                            "border": "1px solid #334155",
+                            "backgroundColor": TOKENS["surface"],
+                            "color": TOKENS["text_2"],
+                            "border": f"1px solid {TOKENS['border']}",
                             "padding": "10px",
-                            "fontFamily": "'Inter', sans-serif",
+                            "fontFamily": FONT_UI,
                             "whiteSpace": "normal",
                             "height": "auto",
+                            "textAlign": "left",
                         },
+                        style_header_conditional=[
+                            {"if": {"column_type": "numeric"}, "textAlign": "right"},
+                        ],
+                        style_filter_conditional=[
+                            {"if": {"column_type": "numeric"}, "textAlign": "right"},
+                        ],
+                        style_cell_conditional=[
+                            {"if": {"column_type": "numeric"}, "textAlign": "right"},
+                        ],
                         style_data_conditional=[
                             {
                                 "if": {"column_id": "TamperingIntegrityPassed", "filter_query": "{TamperingIntegrityPassed} = True"},
-                                "color": "#34d399",
+                                "color": TOKENS["ok"],
                                 "fontWeight": "700",
                             },
                             {
                                 "if": {"column_id": "Algorithm", "filter_query": "{Algorithm} = 'AES-GCM'"},
-                                "color": "#60a5fa",
+                                "color": ALGORITHM_COLORS["AES-GCM"],
                             },
                             {
                                 "if": {"column_id": "Algorithm", "filter_query": "{Algorithm} = 'Ascon-128'"},
-                                "color": "#f472b6",
+                                "color": ALGORITHM_COLORS["Ascon-128"],
                             },
                         ],
+                        tooltip_header={
+                            "EncLatencyMeanMs": "Rata-rata latensi enkripsi, dalam milidetik",
+                            "DecLatencyMeanMs": "Rata-rata latensi dekripsi, dalam milidetik",
+                            "TamperingIntegrityPassed": "True jika data yang diubah ditolak saat dekripsi",
+                        },
                         page_size=10,
                         sort_action="native",
                         filter_action="native",
+                        filter_options={"placeholder_text": "Saring...", "case": "insensitive"},
                         style_table={"overflowX": "auto"},
+                    ),
+                                ],
+                            ),
+                            html.Div(id="artifact-panel"),
+                        ],
                     ),
                 ],
             ),
+            build_demo_section(),
+            build_analysis_section(),
+            build_scenarios_section(),
         ],
     )
 
@@ -754,21 +672,28 @@ def build_dash_app(csv_path: str | None) -> dash.Dash:
         Input("upload-data", "contents"),
         State("upload-data", "filename"),
         State("upload-data", "last_modified"),
+        State("upload-state", "data"),
         prevent_initial_call=True,
     )
-    def handle_upload(contents, filename, last_modified):
+    def handle_upload(contents, filename, last_modified, previous):
         if not contents or not filename:
             raise PreventUpdate
 
-        header, raw_bytes = _decode_upload(contents)
+        try:
+            header, raw_bytes = _decode_upload(contents)
+        except ValueError:
+            return _rejected("File rusak atau tidak terbaca. Coba unggah ulang.", previous)
         file_type = _detect_file_type(filename, header)
         if file_type is None:
-            return no_update, no_update, html.Div(
-                "Format file tidak didukung. Gunakan JSON, PNG, JPG, JPEG, WEBP, GIF, atau BMP.",
-                style={"color": "#f87171"},
-            )
+            return _rejected("Format file tidak didukung. Gunakan JSON, PNG, JPG, JPEG, WEBP, GIF, atau BMP.", previous)
 
         size_bytes = len(raw_bytes)
+        if size_bytes == 0:
+            return _rejected("File kosong (0 byte). Pilih file yang berisi data.", previous)
+        if size_bytes > MAX_UPLOAD_BYTES:
+            return _rejected(
+                f"File terlalu besar ({size_bytes / 1024 / 1024:.1f} MB). Batas {MAX_UPLOAD_BYTES // 1024 // 1024} MB.", previous
+            )
         size_category = _classify_size(file_type, size_bytes)
 
         session_dir = UPLOADS_DIR / uuid.uuid4().hex
@@ -779,11 +704,8 @@ def build_dash_app(csv_path: str | None) -> dash.Dash:
 
         preview = _make_preview(contents, filename, file_type, size_bytes)
         status = html.Div(
-            [
-                html.Div(f"File berhasil diunggah pada {datetime.now(timezone.utc).astimezone().strftime('%Y-%m-%d %H:%M:%S')}"),
-                html.Div(f"Kategori ukuran: {size_category}"),
-            ],
-            style={"color": "#34d399", "lineHeight": "1.6"},
+            f"File berhasil diunggah. Kategori ukuran: {SIZE_LABELS.get(size_category, size_category)}.",
+            className="status status--ok",
         )
 
         upload_state = {
@@ -807,16 +729,18 @@ def build_dash_app(csv_path: str | None) -> dash.Dash:
         Output("benchmark-status", "children"),
         Input("run-benchmark", "n_clicks"),
         State("upload-state", "data"),
+        running=[(Output("run-benchmark", "disabled"), True, False)],
         prevent_initial_call=True,
     )
     def run_benchmark(n_clicks, upload_state):
         if not n_clicks:
             raise PreventUpdate
 
+        upload_state = trusted_upload(upload_state)
         if not upload_state:
             return no_update, html.Div(
                 "Unggah file JSON atau gambar terlebih dahulu sebelum menjalankan benchmark.",
-                style={"color": "#fbbf24"},
+                className="status status--warn",
             )
 
         file_path = upload_state["file_path"]
@@ -831,16 +755,20 @@ def build_dash_app(csv_path: str | None) -> dash.Dash:
         }
         plan = iteration_plan.get(size_category, iteration_plan["small"])
 
-        artifact_dir = Path(upload_state["session_dir"]) / "artifacts"
-        rows, artifacts = run_uploaded_file_benchmark(
-            file_path=file_path,
-            file_type=file_type,
-            size_category=size_category,
-            original_file_name=file_name,
-            warm_ups=plan["warm_ups"],
-            iterations=plan["iterations"],
-            output_dir=str(artifact_dir),
-        )
+        # ponytail: session dir derived from the validated file, never from client state
+        artifact_dir = Path(file_path).parent / "artifacts"
+        try:
+            rows, artifacts = run_uploaded_file_benchmark(
+                file_path=file_path,
+                file_type=file_type,
+                size_category=size_category,
+                original_file_name=file_name,
+                warm_ups=plan["warm_ups"],
+                iterations=plan["iterations"],
+                output_dir=str(artifact_dir),
+            )
+        except (OSError, ValueError) as error:
+            return no_update, _error(f"Benchmark gagal: {error}. Unggah ulang file lalu coba lagi.")
 
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         csv_name = f"{_safe_stem(file_name)}_{timestamp}_benchmark.csv"
@@ -863,11 +791,22 @@ def build_dash_app(csv_path: str | None) -> dash.Dash:
         status = html.Div(
             [
                 html.Div("Benchmark selesai dan hasil sudah disimpan ke CSV."),
-                html.Div(f"CSV: {csv_path}"),
+                html.Div(f"CSV: {_display_path(csv_path)}"),
             ],
-            style={"color": "#34d399", "lineHeight": "1.6"},
+            className="status status--ok",
         )
         return benchmark_state, status
+
+    @app.callback(
+        Output("file-type-dropdown", "value"),
+        Input("benchmark-state", "data"),
+        prevent_initial_call=True,
+    )
+    def sync_file_type(state):
+        # A new upload replaces the data; the filter must say what the charts show.
+        if not state or state.get("source") != "upload":
+            raise PreventUpdate
+        return _load_selected_file_type(state)
 
     @app.callback(
         Output("overview-metrics", "children"),
@@ -902,69 +841,30 @@ def build_dash_app(csv_path: str | None) -> dash.Dash:
         artifacts_panel = _build_artifact_panel(state if state and state.get("source") == "upload" else None)
         return metrics, enc_fig, dec_fig, overhead_fig, filtered_df.to_dict("records"), artifacts_panel
 
-    def _send_text(path: str, filename: str):
-        text = Path(path).read_text(encoding="utf-8")
-        return dcc.send_bytes(lambda buffer: buffer.write(text.encode("utf-8")), filename)
+    def _register_download(algorithm: str, kind: str) -> None:
+        slug = algorithm.lower().replace("-", "_")
 
-    def _send_text(path: str, filename: str):
-        text = Path(path).read_text(encoding="utf-8")
-        return dcc.send_bytes(lambda buffer: buffer.write(text.encode("utf-8")), filename)
+        @app.callback(
+            Output(f"download-{algorithm.lower()}-{kind}", "data"),
+            Input(f"download-{slug}-{kind}", "n_clicks"),
+            State("benchmark-state", "data"),
+            prevent_initial_call=True,
+        )
+        def download(n_clicks, benchmark_state):
+            if not n_clicks or not benchmark_state or benchmark_state.get("source") != "upload":
+                raise PreventUpdate
+            artifact = (benchmark_state.get("artifacts") or {}).get(algorithm)
+            if not artifact:
+                raise PreventUpdate
+            path = artifact.get(f"{kind}_path")
+            # dcc.Store is client-controlled: never serve a path outside the uploads dir
+            if not is_within_uploads(path) or not Path(path).is_file():
+                raise PreventUpdate
+            return dcc.send_file(path, filename=artifact[f"{kind}_filename"])
 
-    @app.callback(
-        Output("download-aes-gcm-ciphertext", "data"),
-        Input("download-aes_gcm-ciphertext", "n_clicks"),
-        State("benchmark-state", "data"),
-        prevent_initial_call=True,
-    )
-    def download_aes_gcm_ciphertext(n_clicks, benchmark_state):
-        if not n_clicks or not benchmark_state or benchmark_state.get("source") != "upload":
-            raise PreventUpdate
-        artifact = benchmark_state.get("artifacts", {}).get("AES-GCM")
-        if not artifact:
-            raise PreventUpdate
-        return _send_text(artifact["ciphertext_path"], artifact["ciphertext_filename"])
-
-    @app.callback(
-        Output("download-aes-gcm-metadata", "data"),
-        Input("download-aes_gcm-metadata", "n_clicks"),
-        State("benchmark-state", "data"),
-        prevent_initial_call=True,
-    )
-    def download_aes_gcm_metadata(n_clicks, benchmark_state):
-        if not n_clicks or not benchmark_state or benchmark_state.get("source") != "upload":
-            raise PreventUpdate
-        artifact = benchmark_state.get("artifacts", {}).get("AES-GCM")
-        if not artifact:
-            raise PreventUpdate
-        return _send_text(artifact["metadata_path"], artifact["metadata_filename"])
-
-    @app.callback(
-        Output("download-ascon-128-ciphertext", "data"),
-        Input("download-ascon_128-ciphertext", "n_clicks"),
-        State("benchmark-state", "data"),
-        prevent_initial_call=True,
-    )
-    def download_ascon_128_ciphertext(n_clicks, benchmark_state):
-        if not n_clicks or not benchmark_state or benchmark_state.get("source") != "upload":
-            raise PreventUpdate
-        artifact = benchmark_state.get("artifacts", {}).get("Ascon-128")
-        if not artifact:
-            raise PreventUpdate
-        return _send_text(artifact["ciphertext_path"], artifact["ciphertext_filename"])
-
-    @app.callback(
-        Output("download-ascon-128-metadata", "data"),
-        Input("download-ascon_128-metadata", "n_clicks"),
-        State("benchmark-state", "data"),
-        prevent_initial_call=True,
-    )
-    def download_ascon_128_metadata(n_clicks, benchmark_state):
-        if not n_clicks or not benchmark_state or benchmark_state.get("source") != "upload":
-            raise PreventUpdate
-        artifact = benchmark_state.get("artifacts", {}).get("Ascon-128")
-        if not artifact:
-            raise PreventUpdate
-        return _send_text(artifact["metadata_path"], artifact["metadata_filename"])
+    for _algorithm in ("AES-GCM", "Ascon-128"):
+        for _kind in ("ciphertext", "metadata"):
+            _register_download(_algorithm, _kind)
 
     register_demo_callbacks(app)
     register_analysis_callbacks(app)

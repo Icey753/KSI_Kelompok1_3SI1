@@ -6,6 +6,8 @@ from dash import Input, Output, State, dcc, html
 from dash.exceptions import PreventUpdate
 
 from src.aead import ALGORITHMS
+from src.dashboard_safety import trusted_upload
+from src.dashboard_theme import section
 from src.demo_tools import (
     TAMPER_TARGETS,
     image_encryption_demo,
@@ -18,25 +20,6 @@ DEFAULT_SAMPLE = json.dumps(
     {"transaction_id": "TRX-0001", "name": "Contoh Pengguna", "amount": 125000.5, "status": "Completed"}
 ).encode("utf-8")
 
-CARD_STYLE = {
-    "backgroundColor": "#1e293b",
-    "border": "1px solid #334155",
-    "borderRadius": "16px",
-    "padding": "1.25rem",
-}
-MONO = {"fontFamily": "monospace", "fontSize": "0.85rem", "color": "#cbd5e1", "wordBreak": "break-all"}
-BUTTON_STYLE = {
-    "backgroundColor": "#3b82f6",
-    "color": "#f8fafc",
-    "border": "none",
-    "borderRadius": "10px",
-    "padding": "0.6rem 1rem",
-    "cursor": "pointer",
-    "fontWeight": "600",
-}
-INPUT_STYLE = {"width": "100%", "backgroundColor": "#0f172a", "color": "#f8fafc", "border": "1px solid #334155",
-               "borderRadius": "8px", "padding": "0.5rem", "boxSizing": "border-box"}
-
 
 def load_plaintext(upload_state: dict | None) -> tuple[bytes, str]:
     if upload_state and upload_state.get("file_path"):
@@ -47,12 +30,12 @@ def load_plaintext(upload_state: dict | None) -> tuple[bytes, str]:
 
 
 def _verdict(text: str, ok: bool) -> html.Div:
-    color = "#34d399" if ok else "#f87171"
-    return html.Div(text, style={"fontSize": "1.25rem", "fontWeight": "800", "color": color, "marginBottom": "0.5rem"})
+    tone = "status--ok" if ok else "status--error"
+    return html.Div(text, className=f"verdict status {tone}")
 
 
 def _line(label: str, value) -> html.Div:
-    return html.Div([html.Span(f"{label}: ", style={"color": "#94a3b8"}), html.Span(str(value), style=MONO)],
+    return html.Div([html.Span(f"{label}: ", className="muted"), html.Span(str(value), className="mono")],
                     style={"marginBottom": "0.25rem"})
 
 
@@ -86,7 +69,7 @@ def render_roundtrip(result: dict) -> html.Div:
             _line("Ukuran", f"{result['plaintext_bytes']} B plaintext, {result['ciphertext_bytes']} B ciphertext+tag"),
             _line("Ciphertext (32 byte awal)", result["ciphertext_preview_hex"]),
             _line("SHA-256 sebelum enkripsi", result["sha256_before"]),
-            _line("SHA-256 sesudah dekripsi", result["sha256_after"]),
+            _line("SHA-256 sesudah dekripsi", result["sha256_after"] or "tidak ada, dekripsi ditolak"),
         ]
     )
 
@@ -103,10 +86,10 @@ def render_nonce_reuse(results: list[dict]) -> html.Div:
                     _line("Plaintext B berhasil dipulihkan dari A", "ya" if result["recovered_matches_b"] else "tidak"),
                     _line("Hasil pemulihan", result["recovered_preview"]),
                 ],
-                style={**CARD_STYLE, "backgroundColor": "#0f172a"},
+                className="card card--inset",
             )
         )
-    return html.Div(cards, style={"display": "grid", "gridTemplateColumns": "repeat(auto-fit, minmax(300px, 1fr))", "gap": "1rem"})
+    return html.Div(cards, style={"display": "grid", "gridTemplateColumns": "repeat(auto-fit, minmax(min(300px, 100%), 1fr))", "gap": "1rem"})
 
 
 def _data_uri(png: bytes) -> str:
@@ -116,7 +99,7 @@ def _data_uri(png: bytes) -> str:
 def render_images(result: dict) -> html.Div:
     def figure(title: str, png: bytes) -> html.Div:
         return html.Div(
-            [html.Div(title, style={"color": "#94a3b8", "marginBottom": "0.4rem"}),
+            [html.Div(title, className="muted", style={"marginBottom": "0.4rem"}),
              html.Img(src=_data_uri(png), style={"maxWidth": "100%", "borderRadius": "8px", "imageRendering": "pixelated"})]
         )
 
@@ -124,7 +107,7 @@ def render_images(result: dict) -> html.Div:
         [
             html.Div(
                 [figure("Gambar asli", result["original_png"]), figure("Ciphertext dirender sebagai piksel", result["cipher_png"])],
-                style={"display": "grid", "gridTemplateColumns": "repeat(auto-fit, minmax(240px, 1fr))", "gap": "1rem"},
+                style={"display": "grid", "gridTemplateColumns": "repeat(auto-fit, minmax(min(240px, 100%), 1fr))", "gap": "1rem"},
             ),
             _line("Ukuran tampilan", f"{result['width']} x {result['height']} piksel (thumbnail)"),
             _line("SHA-256 ciphertext", result["ciphertext_sha256"]),
@@ -135,42 +118,42 @@ def render_images(result: dict) -> html.Div:
 def _panel(title: str, description: str, controls: list, button_id: str, button_label: str, result_id: str) -> html.Div:
     return html.Div(
         [
-            html.H3(title, style={"marginTop": 0}),
-            html.P(description, style={"color": "#94a3b8", "marginTop": 0}),
+            html.H3(title, className="card-title"),
+            html.P(description, className="muted", style={"marginTop": 0}),
             *controls,
-            html.Button(button_label, id=button_id, n_clicks=0, style={**BUTTON_STYLE, "marginTop": "0.75rem"}),
+            html.Button(button_label, id=button_id, n_clicks=0, className="btn", style={"marginTop": "0.75rem"}),
             html.Div(id=result_id, style={"marginTop": "1rem"}),
         ],
-        style=CARD_STYLE,
+        className="card",
     )
 
 
-def build_demo_section() -> html.Div:
-    return html.Div(
-        [
-            html.H2("Demo Interaktif", style={"marginBottom": "0.25rem"}),
-            html.P(
-                "Demo memakai file yang diunggah di atas; bila belum ada, dipakai data contoh. Key dan nonce dibuat acak setiap klik.",
-                style={"color": "#94a3b8", "marginTop": 0},
-            ),
+def build_demo_section() -> html.Section:
+    return section(
+        "demo",
+        "Demo Interaktif",
+        lead="Demo memakai file yang diunggah di atas; bila belum ada, dipakai data contoh. Key dan nonce dibuat acak setiap klik.",
+        children=[
             html.Div(
                 [
-                    html.Span("Algoritma: ", style={"marginRight": "0.5rem"}),
+                    html.Span("Algoritma:", className="muted"),
                     dcc.RadioItems(id="demo-algorithm", options=list(ALGORITHMS), value=ALGORITHMS[0], inline=True,
                                    inputStyle={"marginRight": "0.3rem", "marginLeft": "1rem"}),
                 ],
-                style={**CARD_STYLE, "marginBottom": "1rem"},
+                className="toolbar",
             ),
             html.Div(
-                style={"display": "grid", "gridTemplateColumns": "repeat(auto-fit, minmax(340px, 1fr))", "gap": "1rem", "marginBottom": "1.5rem"},
+                className="grid grid--pair",
                 children=[
                     _panel(
                         "1. Uji tamper (perubahan data)",
                         "Balik 1 bit pada bagian yang dipilih lalu coba dekripsi. AEAD harus menolaknya.",
                         [
+                            html.Label("Bagian yang diubah", id="demo-tamper-target-label", className="field-label"),
                             dcc.Dropdown(id="demo-tamper-target", options=[{"label": t, "value": t} for t in TAMPER_TARGETS],
-                                         value="ciphertext", clearable=False, style={"color": "#0f172a", "marginBottom": "0.5rem"}),
-                            dcc.Input(id="demo-tamper-byte", type="number", min=0, step=1, value=0, style=INPUT_STYLE),
+                                         value="ciphertext", clearable=False, style={"color": "var(--bg)", "marginBottom": "0.5rem"}),
+                            html.Label("Nomor byte (mulai dari 0; melebihi ukuran bagian akan dibulatkan melingkar)", htmlFor="demo-tamper-byte", className="field-label"),
+                            dcc.Input(id="demo-tamper-byte", type="number", min=0, step=1, value=0, className="field"),
                         ],
                         "demo-tamper-run", "Ubah 1 bit lalu dekripsi", "demo-tamper-result",
                     ),
@@ -184,8 +167,10 @@ def build_demo_section() -> html.Div:
                         "3. Bahaya nonce dipakai ulang",
                         "Dua pesan dienkripsi dengan key dan nonce yang sama, lalu XOR ciphertext dibandingkan dengan XOR plaintext. Kedua algoritma dijalankan.",
                         [
-                            dcc.Input(id="demo-nonce-text-a", type="text", value="Transfer Rp 5.000.000 ke rekening A", style={**INPUT_STYLE, "marginBottom": "0.5rem"}),
-                            dcc.Input(id="demo-nonce-text-b", type="text", value="Transfer Rp 9.999.999 ke rekening B", style=INPUT_STYLE),
+                            html.Label("Pesan A", htmlFor="demo-nonce-text-a", className="field-label"),
+                            dcc.Input(id="demo-nonce-text-a", type="text", value="Transfer Rp 5.000.000 ke rekening A", className="field", style={"marginBottom": "0.5rem"}),
+                            html.Label("Pesan B", htmlFor="demo-nonce-text-b", className="field-label"),
+                            dcc.Input(id="demo-nonce-text-b", type="text", value="Transfer Rp 9.999.999 ke rekening B", className="field"),
                         ],
                         "demo-nonce-run", "Jalankan demo nonce reuse", "demo-nonce-result",
                     ),
@@ -197,12 +182,12 @@ def build_demo_section() -> html.Div:
                     ),
                 ],
             ),
-        ]
+        ],
     )
 
 
 def _warn(message: str) -> html.Div:
-    return html.Div(message, style={"color": "#fbbf24"})
+    return html.Div(message, className="status status--warn")
 
 
 def _run_image_demo(algorithm, upload_state) -> html.Div:
@@ -216,7 +201,7 @@ def _run_image_demo(algorithm, upload_state) -> html.Div:
 
 
 def _source_note(source: str) -> html.Div:
-    return html.Div(f"Sumber: {source}", style={"color": "#94a3b8", "marginBottom": "0.5rem"})
+    return html.Div(f"Sumber: {source}", className="muted", style={"marginBottom": "0.5rem"})
 
 
 def register_demo_callbacks(app) -> None:
@@ -232,7 +217,7 @@ def register_demo_callbacks(app) -> None:
     def run_tamper(n_clicks, algorithm, target, byte_index, upload_state):
         if not n_clicks:
             raise PreventUpdate
-        plaintext, source = load_plaintext(upload_state)
+        plaintext, source = load_plaintext(trusted_upload(upload_state))
         try:
             result = tamper_demo(algorithm, plaintext, target, int(byte_index or 0))
         except ValueError as error:
@@ -249,7 +234,7 @@ def register_demo_callbacks(app) -> None:
     def run_roundtrip(n_clicks, algorithm, upload_state):
         if not n_clicks:
             raise PreventUpdate
-        plaintext, source = load_plaintext(upload_state)
+        plaintext, source = load_plaintext(trusted_upload(upload_state))
         return html.Div([_source_note(source), render_roundtrip(roundtrip_demo(algorithm, plaintext))])
 
     @app.callback(
@@ -279,4 +264,4 @@ def register_demo_callbacks(app) -> None:
     def run_image(n_clicks, algorithm, upload_state):
         if not n_clicks:
             raise PreventUpdate
-        return _run_image_demo(algorithm, upload_state)
+        return _run_image_demo(algorithm, trusted_upload(upload_state))
