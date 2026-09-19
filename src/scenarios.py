@@ -3,7 +3,9 @@ import os
 import time
 
 import numpy as np
+import pandas as pd
 
+from src import report
 from src.aead import ALL_VARIANTS, NONCE_LEN, TAG_LEN, open_sealed, seal
 
 AD = b"scenario"
@@ -148,3 +150,28 @@ def run_chunked_scenario(
                 }
             )
     return rows
+
+
+def run_and_save_scenarios(
+    n_messages: int = 2000,
+    total_bytes: int = 8 * 1024 * 1024,
+    iterations: int = 10,
+    acceleration_sizes=ACCEL_SIZES,
+) -> dict[str, pd.DataFrame]:
+    outputs = {
+        "small_messages": run_small_message_scenario(n_messages=n_messages, warm_ups=min(200, n_messages)),
+        "chunked": run_chunked_scenario(total_bytes=total_bytes, iterations=iterations),
+        "acceleration": run_acceleration_scenario(sizes=acceleration_sizes, iterations=iterations),
+    }
+    os.makedirs(report.RESULTS_DIR, exist_ok=True)
+    frames = {}
+    for name, rows in outputs.items():
+        frames[name] = pd.DataFrame(rows)
+        frames[name].to_csv(os.path.join(report.RESULTS_DIR, f"{name}.csv"), index=False)
+    return frames
+
+
+if __name__ == "__main__":
+    for scenario_name, frame in run_and_save_scenarios().items():
+        print(f"\n== {scenario_name} ==")
+        print(frame.to_string(index=False))
