@@ -233,3 +233,13 @@ Tes mencakup test vector resmi AES-GCM (NIST) dan Ascon-AEAD128 (1089 vektor dar
 - **`aesni_speedup`** hanya mengukur efek AES-NI pada block cipher (`use_aesni=False`). GHASH/CLMUL dipilih terpisah oleh pycryptodome, jadi angka ini meremehkan efek akselerasi hardware penuh.
 - **`EncLatencyCI95Ms` / `DecLatencyCI95Ms`** adalah setengah-lebar CI 95% pendekatan normal untuk RATA-RATA (bukan median), dengan asumsi n >= 30.
 - **Test vector Ascon (1089 vektor)** dibaca dari `native/ascon/ascon-c/crypto_aead/asconaead128/LWC_AEAD_KAT_128_128.txt`. Di git hanya DLL `native/ascon/bin/libcrypto_aead_asconaead128_ref.dll` (dan `native/ascon/README.md`) yang tercatat; folder sumber `native/ascon/ascon-c` (termasuk file KAT) belum ada di git. Jika file KAT tidak ada, dua tes KAT Ascon di-SKIP (bukan gagal). Untuk mengaktifkannya, letakkan sumber ascon-c di `native/ascon/ascon-c`.
+
+## Skenario Realistis
+
+`python -m src.scenarios` menjalankan tiga skenario dan menyimpan `output/results/small_messages.csv`, `chunked.csv`, dan `acceleration.csv`:
+
+- **Pesan kecil (gaya API):** 64 B sampai 4 KB, nonce baru per pesan, dilaporkan sebagai pesan/detik dan latensi median/P95.
+- **Chunked:** file 8 MB dienkripsi per chunk (4 KB, 64 KB, 1 MB, utuh). Tiap chunk membawa tag 16 byte dan AD berisi indeks chunk, sehingga penukaran urutan atau pemotongan aliran terdeteksi.
+- **Akselerasi:** `AES-GCM` (dengan AES-NI), `AES-GCM-noNI` (opsi `use_aesni=False` pada pycryptodome), dan `Ascon-128`, untuk menjelaskan mengapa hasil di PC desktop berbeda dari literatur perangkat IoT.
+
+Dashboard (`python dashboard.py`) menampilkan ketiganya di bagian "Skenario Realistis".
