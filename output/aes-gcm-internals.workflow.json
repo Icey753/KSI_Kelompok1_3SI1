@@ -1,0 +1,81 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "AES-GCM Internals",
+    "output": "output/aes-gcm-internals.html",
+    "animation": "trace",
+    "quality_profile": "showcase",
+    "views": [
+      { "id": "ctr", "label": "CTR encryption", "focus": ["key", "nonce", "counter", "aes_block", "keystream", "plaintext", "xor_pt", "ciphertext"], "note": "AES encrypts a counter block per plaintext block to produce keystream." },
+      { "id": "ghash", "label": "GHASH authentication", "focus": ["assoc_data", "h_subkey", "len_block", "ghash", "tag"], "note": "GHASH combines AAD, ciphertext length, and the hash subkey into a tag input." },
+      { "id": "tag-out", "label": "Final tag", "focus": ["ciphertext", "ghash", "tag"], "note": "GHASH's output becomes the authentication tag for the ciphertext." }
+    ]
+  },
+  "lanes": [
+    { "id": "setup", "label": "Inputs" },
+    { "id": "ctr", "label": "CTR Encryption" },
+    { "id": "auth", "label": "GHASH Authentication" }
+  ],
+  "nodes": [
+    { "id": "key", "lane": "setup", "col": 0, "type": "security", "label": "Key", "sublabel": "128-bit", "width": 132 },
+    { "id": "nonce", "lane": "setup", "col": 1, "type": "external", "label": "Nonce", "sublabel": "96-bit", "width": 132 },
+    { "id": "plaintext", "lane": "setup", "col": 2, "type": "external", "label": "Plaintext Block", "width": 132 },
+
+    { "id": "counter", "lane": "ctr", "col": 0, "type": "backend", "label": "Counter Block", "sublabel": "J0 + counter i", "width": 132 },
+    { "id": "aes_block", "lane": "ctr", "col": 1, "type": "backend", "label": "AES-128 Encrypt", "sublabel": "block cipher", "width": 132 },
+    { "id": "keystream", "lane": "ctr", "col": 2, "type": "backend", "label": "Keystream Block", "width": 132 },
+    { "id": "xor_pt", "lane": "ctr", "col": 3, "type": "backend", "label": "XOR with Plaintext", "width": 132 },
+    { "id": "ciphertext", "lane": "ctr", "col": 4, "type": "messagebus", "label": "Ciphertext Block", "width": 132 },
+
+    { "id": "assoc_data", "lane": "auth", "col": 0, "type": "external", "label": "Associated Data", "width": 132 },
+    { "id": "h_subkey", "lane": "auth", "col": 1, "type": "security", "label": "Hash Subkey H", "sublabel": "AES_encrypt(key, 0)", "width": 132 },
+    { "id": "len_block", "lane": "auth", "col": 2, "type": "backend", "label": "Length Block", "sublabel": "len(AAD) || len(CT)", "width": 132 },
+    { "id": "ghash", "lane": "auth", "col": 3, "type": "security", "label": "GHASH", "sublabel": "mult in GF(2^128)", "width": 132 },
+    { "id": "tag", "lane": "auth", "col": 4, "type": "security", "label": "Auth Tag", "sublabel": "128-bit, XOR with encrypt(J0)", "width": 132 }
+  ],
+  "edges": [
+    { "id": "key-aes", "from": "key", "to": "aes_block", "variant": "default" },
+    { "id": "nonce-counter", "from": "nonce", "to": "counter", "label": "build J0 + counter", "variant": "default" },
+    { "id": "counter-aes", "from": "counter", "to": "aes_block", "variant": "default" },
+    { "id": "aes-keystream", "from": "aes_block", "to": "keystream", "label": "counter i >= 1", "variant": "emphasis" },
+    { "id": "keystream-xor", "from": "keystream", "to": "xor_pt", "variant": "emphasis" },
+    { "id": "plaintext-xor", "from": "plaintext", "to": "xor_pt", "label": "plaintext block", "variant": "default" },
+    { "id": "xor-ciphertext", "from": "xor_pt", "to": "ciphertext", "variant": "emphasis" },
+
+    { "id": "ciphertext-ghash", "from": "ciphertext", "to": "ghash", "label": "authenticate", "variant": "security", "route": "drop" },
+    { "id": "ad-ghash", "from": "assoc_data", "to": "ghash", "label": "AAD blocks", "variant": "default" },
+    { "id": "h-ghash", "from": "h_subkey", "to": "ghash", "variant": "security" },
+    { "id": "len-ghash", "from": "len_block", "to": "ghash", "variant": "default" },
+    { "id": "ghash-tag", "from": "ghash", "to": "tag", "label": "GHASH result", "variant": "security" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "CTR Encryption",
+      "items": [
+        "Each plaintext block is XORed with an AES-encrypted counter, not encrypted directly",
+        "Counter blocks 1+ generate keystream; block J0 is reserved for the tag",
+        "This makes AES-GCM parallelizable and hardware-accelerated on AES-NI"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "GHASH Authentication",
+      "items": [
+        "GHASH mixes associated data, ciphertext, and a length block over GF(2^128)",
+        "The hash subkey H is derived once by encrypting an all-zero block with the key",
+        "GHASH output is XORed with the encrypted J0 block to produce the final tag"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Why It Matters for the Benchmark",
+      "items": [
+        "Nonce reuse under the same key breaks both confidentiality and authentication",
+        "Tag verification must happen before plaintext is ever released",
+        "This internal cost is what the AES-GCM timing numbers in the dashboard measure"
+      ]
+    }
+  ]
+}

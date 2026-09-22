@@ -1,6 +1,14 @@
 __pycache__/
 .venv/
-output/
+output/*
+!output/*.workflow.json
+!output/*.sequence.json
+!output/aead-benchmark-flow.html
+!output/aes-gcm-internals.html
+!output/ascon128-internals.html
+!output/aead-benchmark-flow.png
+!output/aes-gcm-internals.png
+!output/ascon128-internals.png
 *.pyc
 PROPOSAL PROYEK AKHIR.docx
 planv3.md

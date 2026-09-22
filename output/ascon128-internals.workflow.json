@@ -1,0 +1,85 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Ascon-128 Internals",
+    "output": "output/ascon128-internals.html",
+    "animation": "trace",
+    "quality_profile": "showcase",
+    "views": [
+      { "id": "init", "label": "Initialization", "focus": ["key_nonce", "state_init", "perm_a1", "xor_key1"], "note": "Key, nonce, and IV load the state; a 12-round permutation runs before the key is XORed back in." },
+      { "id": "absorb-ad", "label": "Absorb AD", "focus": ["ad_blocks", "xor_rate1", "perm_b1", "domain_sep"], "note": "AD blocks XOR into the rate with a lighter 6-round permutation." },
+      { "id": "encrypt-finalize", "label": "Encrypt + finalize", "focus": ["pt_blocks", "xor_rate2", "ct_out", "perm_b2", "finalize", "tag_extract"], "note": "Plaintext XORs into the rate to become ciphertext, then the key is XORed in again before the tag is extracted." }
+    ]
+  },
+  "lanes": [
+    { "id": "init", "label": "1. Initialization" },
+    { "id": "ad", "label": "2. Absorb AD" },
+    { "id": "pt", "label": "3. Duplex Encrypt + 4. Finalization" }
+  ],
+  "nodes": [
+    { "id": "key_nonce", "lane": "init", "col": 0, "type": "security", "label": "Key + Nonce", "sublabel": "+ fixed IV", "width": 132 },
+    { "id": "state_init", "lane": "init", "col": 1, "type": "backend", "label": "Load State", "sublabel": "320-bit", "width": 132 },
+    { "id": "perm_a1", "lane": "init", "col": 2, "type": "backend", "label": "Permutation p^a", "sublabel": "12 rounds", "width": 132 },
+    { "id": "xor_key1", "lane": "init", "col": 3, "type": "security", "label": "XOR Key", "sublabel": "into capacity", "width": 132 },
+
+    { "id": "ad_blocks", "lane": "ad", "col": 0, "type": "external", "label": "AD Blocks", "width": 132 },
+    { "id": "xor_rate1", "lane": "ad", "col": 1, "type": "backend", "label": "XOR into Rate", "width": 132 },
+    { "id": "perm_b1", "lane": "ad", "col": 2, "type": "backend", "label": "Permutation p^b", "sublabel": "6 rounds", "width": 132 },
+    { "id": "domain_sep", "lane": "ad", "col": 3, "type": "security", "label": "Domain Separation", "sublabel": "XOR const bit", "width": 132 },
+
+    { "id": "pt_blocks", "lane": "pt", "col": 0, "type": "external", "label": "Plaintext Blocks", "width": 132 },
+    { "id": "xor_rate2", "lane": "pt", "col": 1, "type": "backend", "label": "XOR into Rate", "width": 132 },
+    { "id": "ct_out", "lane": "pt", "col": 2, "type": "messagebus", "label": "Ciphertext Block", "width": 132 },
+    { "id": "perm_b2", "lane": "pt", "col": 3, "type": "backend", "label": "Permutation p^b", "sublabel": "repeat per block", "width": 132 },
+    { "id": "finalize", "lane": "pt", "col": 4, "type": "security", "label": "XOR Key + p^a", "sublabel": "12 rounds", "width": 110 },
+    { "id": "tag_extract", "lane": "pt", "col": 5, "type": "security", "label": "Extract Tag", "sublabel": "top 128 bits", "width": 110 }
+  ],
+  "edges": [
+    { "id": "key-state", "from": "key_nonce", "to": "state_init", "variant": "default" },
+    { "id": "state-perma1", "from": "state_init", "to": "perm_a1", "variant": "emphasis" },
+    { "id": "perma1-xorkey1", "from": "perm_a1", "to": "xor_key1", "variant": "security" },
+
+    { "id": "xorkey1-xorrate1", "from": "xor_key1", "to": "xor_rate1", "label": "start absorbing AD", "variant": "default", "route": "drop" },
+    { "id": "ad-xorrate1", "from": "ad_blocks", "to": "xor_rate1", "variant": "default" },
+    { "id": "xorrate1-permb1", "from": "xor_rate1", "to": "perm_b1", "variant": "emphasis" },
+    { "id": "permb1-domainsep", "from": "perm_b1", "to": "domain_sep", "variant": "security" },
+
+    { "id": "domainsep-xorrate2", "from": "domain_sep", "to": "xor_rate2", "label": "start encrypting", "variant": "default" },
+    { "id": "pt-xorrate2", "from": "pt_blocks", "to": "xor_rate2", "variant": "default" },
+    { "id": "xorrate2-ctout", "from": "xor_rate2", "to": "ct_out", "label": "rate = ciphertext", "variant": "emphasis" },
+    { "id": "ctout-permb2", "from": "ct_out", "to": "perm_b2", "variant": "emphasis" },
+
+    { "id": "permb2-finalize", "from": "perm_b2", "to": "finalize", "label": "last block done", "variant": "security" },
+    { "id": "finalize-tag", "from": "finalize", "to": "tag_extract", "variant": "emphasis" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Sponge / Duplex Construction",
+      "items": [
+        "A single 320-bit state is permuted throughout; there is no separate block cipher",
+        "The heavy 12-round permutation only runs at init and finalization",
+        "AD and plaintext absorption reuse a lighter 6-round permutation per block"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Encryption Is Direct XOR",
+      "items": [
+        "Ciphertext is read straight off the rate after XORing in plaintext",
+        "No keystream is precomputed separately like in AES-CTR",
+        "Domain separation marks the AD-to-plaintext transition inside the same state"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Why It Matters for the Benchmark",
+      "items": [
+        "Fewer, lighter permutation rounds are why Ascon-128 targets lightweight/embedded use",
+        "The same key is XORed in twice: once at init, once before finalization",
+        "This internal cost is what the Ascon-128 timing numbers in the dashboard measure"
+      ]
+    }
+  ]
+}
