@@ -304,3 +304,4 @@ Semua grafik angka (slide 12, 13, 15) dibuat sebagai chart bawaan Canva, bukan g
 | 12, 13, 15 | Data chart | tabel di slide masing-masing (dari CSV) |
 | 16 | Screenshot dashboard | jalankan `python dashboard.py` |
 | 2, 4, 11 | Ikon | pustaka ikon Canva |
+  vt  b  
