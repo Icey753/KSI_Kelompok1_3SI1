@@ -156,3 +156,8 @@ def test_demo_section_has_cbc_ids():
     ids = _ids(build_demo_section())
     assert "demo-cbc-run" in ids
     assert "demo-cbc-result" in ids
+
+
+def test_demo_section_mentions_real_nonce_reuse_incident():
+    text = _text(build_demo_section())
+    assert "kopia" in text.lower()

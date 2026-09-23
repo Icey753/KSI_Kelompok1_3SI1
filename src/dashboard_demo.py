@@ -205,6 +205,7 @@ def build_demo_section() -> html.Section:
                         "3. Bahaya nonce dipakai ulang",
                         "Dua pesan dienkripsi dengan key dan nonce yang sama, lalu XOR ciphertext dibandingkan dengan XOR plaintext. Kedua algoritma dijalankan.",
                         [
+                            _nonce_incident_note(),
                             html.Label("Pesan A", htmlFor="demo-nonce-text-a", className="field-label"),
                             dcc.Input(id="demo-nonce-text-a", type="text", value="Transfer Rp 5.000.000 ke rekening A", className="field", style={"marginBottom": "0.5rem"}),
                             html.Label("Pesan B", htmlFor="demo-nonce-text-b", className="field-label"),
@@ -246,6 +247,28 @@ def _run_image_demo(algorithm, upload_state) -> html.Div:
 
 def _source_note(source: str) -> html.Div:
     return html.Div(f"Sumber: {source}", className="muted", style={"marginBottom": "0.5rem"})
+
+
+def _nonce_incident_note() -> html.Div:
+    return html.Div(
+        [
+            html.P(
+                "Ini bukan cuma teori: pada 2023, software backup Kopia sempat punya bug generator "
+                "nonce acak yang membuat reuse nonce mungkin terjadi pada skala besar.",
+                className="muted",
+                style={"marginBottom": "0.5rem"},
+            ),
+            html.A(
+                "Lihat laporan bug: github.com/kopia/kopia issue #5169",
+                href="https://github.com/kopia/kopia/issues/5169",
+                target="_blank",
+                rel="noopener noreferrer",
+                className="muted",
+            ),
+        ],
+        className="card card--inset",
+        style={"marginBottom": "0.75rem"},
+    )
 
 
 def register_demo_callbacks(app) -> None:
