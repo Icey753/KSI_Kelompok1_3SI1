@@ -156,7 +156,7 @@ Semua grafik angka (slide 13, 14, 16) dibuat sebagai chart bawaan Canva, bukan g
 ### 8. Arsitektur pipeline (1:15) · Layout C
 
 - **Judul:** Satu perintah menjalankan seluruh pipeline
-- **Visual:** unggah `assets/codeflow.png`, letakkan di area visual. Bila terlalu kecil, pangkas bagian yang penting.
+- **Visual:** unggah `assets/codeflow.png`, letakkan di area visual. Bila terlalu kecil, pangkas bagian yang penting. Alternatif: `output/aead-benchmark-flow.png`, diagram sequence baru (Dashboard → Benchmark Runner → AEAD Wrapper → cipher → tag verify) yang lebih rinci soal alur pemanggilan.
 - **Panel:** tiga label lapisan bertumpuk.
   - Cipher: `aead.py`
   - Pengukuran: `benchmark`, `sweep`, `scenarios`
@@ -194,7 +194,7 @@ Semua grafik angka (slide 13, 14, 16) dibuat sebagai chart bawaan Canva, bukan g
 ### 12. Validasi kebenaran (0:30) · Layout B
 
 - **Judul:** Hasil benchmark valid karena implementasinya terbukti benar
-- **Kartu 1:** angka besar 105, keterangan "tes pytest lulus".
+- **Kartu 1:** angka besar 116, keterangan "tes pytest lulus".
 - **Kartu 2:** angka besar 1089, keterangan "vektor uji Ascon-AEAD128 (ditambah 3 vektor GCM NIST)".
 - **Kartu 3:** ikon perisai, keterangan "Tampering test: satu bit dibalik, dekripsi ditolak".
 
@@ -204,37 +204,37 @@ Semua grafik angka (slide 13, 14, 16) dibuat sebagai chart bawaan Canva, bukan g
 
 ### 13. Latensi per file (1:15) · Layout C
 
-- **Judul:** AES-GCM 2,2–3,0× lebih cepat pada keenam file
+- **Judul:** AES-GCM 2,5–4,3× lebih cepat pada keenam file
 - **Visual:** chart batang berkelompok (Canva: Elements > Charts > Bar chart). Enam kategori, dua seri (AES-GCM biru, Ascon merah muda). Data (median enkripsi, ms):
 
   | File | AES-GCM | Ascon | Rasio Ascon/AES |
   |---|---|---|---|
-  | small.json | 0,144 | 0,411 | 2,9× |
-  | medium.json | 1,901 | 4,977 | 2,6× |
-  | large.json | 5,599 | 14,021 | 2,5× |
-  | small.png | 0,588 | 1,774 | 3,0× |
-  | medium.png | 5,041 | 12,766 | 2,5× |
-  | large.png | 15,596 | 33,889 | 2,2× |
+  | small.json | 0,143 | 0,408 | 2,8× |
+  | medium.json | 1,810 | 4,625 | 2,6× |
+  | large.json | 4,490 | 13,643 | 3,0× |
+  | small.png | 0,414 | 1,772 | 4,3× |
+  | medium.png | 5,001 | 12,388 | 2,5× |
+  | large.png | 13,130 | 33,657 | 2,6× |
 
-- **Panel:** satu angka besar "2,2–3,0×" dan satu keterangan "Ascon lebih lambat pada semua file. Dekripsi serupa: 2,5–3,5×".
+- **Panel:** satu angka besar "2,5–4,3×" dan satu keterangan "Ascon lebih lambat pada semua file. Dekripsi serupa: 2,6–5,4×".
 - **Sumber:** `output/results/benchmark_results.csv`.
 
 ### 14. Size sweep dan titik potong (1:45) · Layout C
 
-- **Judul:** Ascon menang di bawah sekitar 11–17 KB, AES-GCM menang di atasnya
+- **Judul:** Ascon menang di bawah sekitar 16 KB, AES-GCM menang di atasnya
 - **Visual:** chart garis Canva (Elements > Charts > Line chart). Sumbu x berupa kategori ukuran (1 KB, 4 KB, 16 KB, 64 KB, 256 KB, 1 MB, 4 MB, 10 MB), dua seri JSON dan biner berisi rasio Ascon/AES. Tambahkan satu garis horizontal putus-putus di nilai 1 (Elements > Lines) berlabel "rasio 1 = setara". Data dari `output/results/size_sweep_summary.csv` (kolom `RatioAsconOverAes`).
 - **Panel:** tabel rasio kecil.
 
   | Ukuran | JSON | Biner |
   |---|---|---|
-  | 1 KB | 0,25 | 0,28 |
-  | 4 KB | 0,41 | 0,31 |
-  | 16 KB | 0,98 (tidak signifikan) | 1,53 |
-  | 64 KB | 2,24 | 1,53 |
-  | 1 MB | 2,64 | 3,19 |
-  | 10 MB | 3,21 | 3,15 |
+  | 1 KB | 0,25 | 0,25 |
+  | 4 KB | 0,42 | 0,44 |
+  | 16 KB | 0,98 (tidak signifikan) | 1,01 (tidak signifikan) |
+  | 64 KB | 2,56 | 2,35 |
+  | 1 MB | 2,64 | 3,54 |
+  | 10 MB | 3,30 | 3,31 |
 
-- **Catatan:** `output/charts/size_sweep.png` tidak dipakai langsung karena berbentuk hampir persegi dan label titik potongnya saling tumpang tindih. Sumbu kategori di Canva tidak berskala log, tapi ukurannya memang berkelipatan rapi sehingga tetap terbaca.
+- **Catatan:** `output/charts/size_sweep.png` tidak dipakai langsung karena berbentuk hampir persegi dan label titik potongnya saling tumpang tindih. Sumbu kategori di Canva tidak berskala log, tapi ukurannya memang berkelipatan rapi sehingga tetap terbaca. Titik potong 16 KB dibulatkan dari dua titik uji terdekat (4 KB dan 16 KB); tidak ada titik uji di antaranya, jadi angka pastinya bisa di mana saja pada rentang itu.
 - Ini slide inti, tekankan titik potongnya.
 
 ### 15. Overhead ukuran (0:45) · Layout B (empat kartu)
@@ -315,4 +315,4 @@ Semua grafik angka (slide 13, 14, 16) dibuat sebagai chart bawaan Canva, bukan g
 | 13, 14, 16 | Data chart | tabel di slide masing-masing (dari CSV) |
 | 17 | Screenshot dashboard | jalankan `python dashboard.py` |
 | 2, 4, 12 | Ikon | pustaka ikon Canva |
-  vt  b  
+| 8 (alternatif) | Diagram sequence pipeline benchmark | `output/aead-benchmark-flow.png` (versi interaktif: `assets/diagrams/aead-benchmark-flow.html`) |  
