@@ -12,3 +12,15 @@ module _ASCON_C: None
 module BACKEND: Python (ascon lib)
 
 [Done] exited with code=0 in 0.483 seconds
+
+---
+
+Fix: set ASCON_BACKEND=c sebelum run biar backend C dipake (default-nya "python").
+
+CMD (Command Prompt):
+set ASCON_BACKEND=c
+python diagnose_ascon.py
+
+PowerShell:
+$env:ASCON_BACKEND="c"
+python diagnose_ascon.py
