@@ -83,7 +83,7 @@ def test_cbc_tamper_demo_corrupts_silently_when_padding_block_untouched():
 
 
 def test_cbc_tamper_demo_reports_untampered_preview_bytes():
-    plaintext = b"blok pertama rusak, blok setelahnya tetap." + b"!" * 5
+    plaintext = b"blok pertama rusak, blok setelahnya tetap.!!" + b"!" * 4
     result = cbc_tamper_demo(plaintext, byte_index=0)
     # Everything from block 2 onward (bytes 32+) is untouched by a block-0 bit flip.
     assert result["tampered_preview"][32:] == plaintext.decode("utf-8")[32:]
