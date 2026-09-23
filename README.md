@@ -47,15 +47,15 @@ Bagian ini merangkum hal yang paling sering membuat orang atau agen salah langka
 
 **Titik masuk**
 
-| Tujuan | File / perintah |
-|---|---|
-| Jalankan pipeline penuh | `python main.py` |
-| Jalankan dashboard | `python dashboard.py` (memanggil `src.dashboard_app.build_dash_app`) |
-| Benchmark satu file | `src.benchmark.run_single_file_benchmark(...)` |
-| Sweep ukuran 1 KB sampai 10 MB | `python -m src.sweep` |
-| Skenario realistis | `python -m src.scenarios` |
-| Buat ulang dataset | `python -m src.data_prep [--seed N]` |
-| Tes | `python -m pytest -v` |
+| Tujuan                         | File / perintah                                                      |
+| ------------------------------ | -------------------------------------------------------------------- |
+| Jalankan pipeline penuh        | `python main.py`                                                     |
+| Jalankan dashboard             | `python dashboard.py` (memanggil `src.dashboard_app.build_dash_app`) |
+| Benchmark satu file            | `src.benchmark.run_single_file_benchmark(...)`                       |
+| Sweep ukuran 1 KB sampai 10 MB | `python -m src.sweep`                                                |
+| Skenario realistis             | `python -m src.scenarios`                                            |
+| Buat ulang dataset             | `python -m src.data_prep [--seed N]`                                 |
+| Tes                            | `python -m pytest -v`                                                |
 
 **Aturan penting**
 
@@ -132,63 +132,63 @@ Alur `python main.py`:
 
 ### Cipher
 
-| File | Isi |
-|---|---|
-| `src/cipher_aes.py` | `aes_gcm_encrypt` / `aes_gcm_decrypt` (pycryptodome, parameter `use_aesni`). Decrypt mengembalikan `None` jika tag salah. Juga menyediakan `aes_cbc_encrypt`/`aes_cbc_decrypt` (tanpa authentication tag) khusus untuk demo perbandingan AEAD vs CBC di `demo_tools.py`. |
+| File                  | Isi                                                                                                                                                                                                                                                                                                             |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/cipher_aes.py`   | `aes_gcm_encrypt` / `aes_gcm_decrypt` (pycryptodome, parameter `use_aesni`). Decrypt mengembalikan `None` jika tag salah. Juga menyediakan `aes_cbc_encrypt`/`aes_cbc_decrypt` (tanpa authentication tag) khusus untuk demo perbandingan AEAD vs CBC di `demo_tools.py`.                                        |
 | `src/cipher_ascon.py` | `ascon_128_encrypt` / `ascon_128_decrypt`. Mencari DLL di `native/ascon/bin/` lalu `native/ascon/build/` dan `native/ascon/`, dipanggil lewat `ctypes`. Jika tidak ada, fallback ke library `ascon`. Output enkripsi berupa ciphertext + tag digabung. Konstanta `BACKEND` dan `VARIANT` menyatakan yang aktif. |
-| `src/aead.py` | Antarmuka seragam `seal` / `open_sealed`, konstanta `TAG_LEN`, `NONCE_LEN`, `ALGORITHMS`, `ALL_VARIANTS`. Memisahkan tag dari output Ascon. |
+| `src/aead.py`         | Antarmuka seragam `seal` / `open_sealed`, konstanta `TAG_LEN`, `NONCE_LEN`, `ALGORITHMS`, `ALL_VARIANTS`. Memisahkan tag dari output Ascon.                                                                                                                                                                     |
 
 ### Pengukuran
 
-| File | Isi |
-|---|---|
-| `src/benchmark.py` | Inti benchmark. `run_single_file_benchmark` (file dari disk), `run_uploaded_file_benchmark` (file upload dashboard, opsional menyimpan ciphertext Base64 dan metadata JSON), `_run_plaintext_benchmark` (dipakai juga oleh sweep). Associated data tetap: `b"cipher-benchmark-metadata"`. |
-| `src/sweep.py` | Size sweep: `SWEEP_SIZES` (1 KB, 4 KB, 16 KB, 64 KB, 256 KB, 1 MB, 4 MB, 10 MB), payload `json` dan `binary` (`make_payload`), `summarize_sweep` (rasio Ascon/AES dan p-value Mann-Whitney), `find_crossover` (interpolasi titik potong di skala log). |
-| `src/scenarios.py` | Tiga skenario: pesan kecil, chunked, akselerasi. Menyimpan CSV lewat `run_and_save_scenarios`. |
-| `src/stats_utils.py` | `ci95_halfwidth` (CI 95% untuk rata-rata) dan `mann_whitney_p` (scipy). |
-| `src/env_info.py` | Info lingkungan dan `measure_aesni_speedup`. |
-| `src/data_prep.py` | Generator dataset JSON (Faker) dan PNG (noise acak, tanpa kompresi). |
+| File                 | Isi                                                                                                                                                                                                                                                                                       |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/benchmark.py`   | Inti benchmark. `run_single_file_benchmark` (file dari disk), `run_uploaded_file_benchmark` (file upload dashboard, opsional menyimpan ciphertext Base64 dan metadata JSON), `_run_plaintext_benchmark` (dipakai juga oleh sweep). Associated data tetap: `b"cipher-benchmark-metadata"`. |
+| `src/sweep.py`       | Size sweep: `SWEEP_SIZES` (1 KB, 4 KB, 16 KB, 64 KB, 256 KB, 1 MB, 4 MB, 10 MB), payload `json` dan `binary` (`make_payload`), `summarize_sweep` (rasio Ascon/AES dan p-value Mann-Whitney), `find_crossover` (interpolasi titik potong di skala log).                                    |
+| `src/scenarios.py`   | Tiga skenario: pesan kecil, chunked, akselerasi. Menyimpan CSV lewat `run_and_save_scenarios`.                                                                                                                                                                                            |
+| `src/stats_utils.py` | `ci95_halfwidth` (CI 95% untuk rata-rata) dan `mann_whitney_p` (scipy).                                                                                                                                                                                                                   |
+| `src/env_info.py`    | Info lingkungan dan `measure_aesni_speedup`.                                                                                                                                                                                                                                              |
+| `src/data_prep.py`   | Generator dataset JSON (Faker) dan PNG (noise acak, tanpa kompresi).                                                                                                                                                                                                                      |
 
 ### Laporan dan grafik
 
-| File | Isi |
-|---|---|
-| `src/report.py` | `save_benchmark_results` (CSV ringkasan, kolom berawalan `_` dibuang) dan `save_raw_samples` (CSV format panjang). Konstanta `RESULTS_DIR`. |
-| `src/visualize.py` | `generate_static_charts` (matplotlib). Berisi juga `build_dash_app` versi lama yang **tidak dipakai lagi**; dashboard aktif ada di `src/dashboard_app.py`. |
-| `src/sweep_charts.py` | `generate_sweep_chart` dan `generate_boxplot` (matplotlib). |
+| File                  | Isi                                                                                                                                                        |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/report.py`       | `save_benchmark_results` (CSV ringkasan, kolom berawalan `_` dibuang) dan `save_raw_samples` (CSV format panjang). Konstanta `RESULTS_DIR`.                |
+| `src/visualize.py`    | `generate_static_charts` (matplotlib). Berisi juga `build_dash_app` versi lama yang **tidak dipakai lagi**; dashboard aktif ada di `src/dashboard_app.py`. |
+| `src/sweep_charts.py` | `generate_sweep_chart` dan `generate_boxplot` (matplotlib).                                                                                                |
 
 ### Dashboard
 
-| File | Isi |
-|---|---|
-| `src/dashboard_app.py` | `build_dash_app`: layout utama, upload, benchmark file, grafik latensi dan overhead, unduhan artefak. |
-| `src/dashboard_demo.py` | Bagian "Demo Interaktif" (memakai `demo_tools.py`). |
-| `src/dashboard_analysis.py` | Bagian "Analisis Ukuran Data dan Lingkungan" (grafik sweep, panel `environment.json`). |
-| `src/dashboard_scenarios.py` | Bagian "Skenario Realistis". Tombol cepat menyimpan ke `output/results/quick/`. |
-| `src/dashboard_safety.py` | Batas upload 50 MB dan validasi bahwa path berada di `output/uploads/` (`is_within_uploads`, `trusted_upload`). |
-| `src/dashboard_theme.py` | Token warna, CSS, layout dasar grafik, warna per algoritma. |
-| `src/demo_tools.py` | Logika demo tanpa UI: `tamper_demo`, `roundtrip_demo`, `nonce_reuse_demo`, `image_encryption_demo`. |
+| File                         | Isi                                                                                                             |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `src/dashboard_app.py`       | `build_dash_app`: layout utama, upload, benchmark file, grafik latensi dan overhead, unduhan artefak.           |
+| `src/dashboard_demo.py`      | Bagian "Demo Interaktif" (memakai `demo_tools.py`).                                                             |
+| `src/dashboard_analysis.py`  | Bagian "Analisis Ukuran Data dan Lingkungan" (grafik sweep, panel `environment.json`).                          |
+| `src/dashboard_scenarios.py` | Bagian "Skenario Realistis". Tombol cepat menyimpan ke `output/results/quick/`.                                 |
+| `src/dashboard_safety.py`    | Batas upload 50 MB dan validasi bahwa path berada di `output/uploads/` (`is_within_uploads`, `trusted_upload`). |
+| `src/dashboard_theme.py`     | Token warna, CSS, layout dasar grafik, warna per algoritma.                                                     |
+| `src/demo_tools.py`          | Logika demo tanpa UI: `tamper_demo`, `roundtrip_demo`, `nonce_reuse_demo`, `image_encryption_demo`.             |
 
 ## Algoritma dan Parameter
 
-| | AES-GCM | Ascon (label `Ascon-128`) |
-|---|---|---|
-| Kunci | 16 byte (AES-128) | 16 byte |
-| Nonce | 12 byte | 16 byte |
-| Tag | 16 byte | 16 byte |
+|              | AES-GCM                                   | Ascon (label `Ascon-128`)                                           |
+| ------------ | ----------------------------------------- | ------------------------------------------------------------------- |
+| Kunci        | 16 byte (AES-128)                         | 16 byte                                                             |
+| Nonce        | 12 byte                                   | 16 byte                                                             |
+| Tag          | 16 byte                                   | 16 byte                                                             |
 | Implementasi | pycryptodome (C, memakai AES-NI bila ada) | `ascon-c` referensi lewat `ctypes`; fallback library Python `ascon` |
-| Varian | NIST GCM | Backend C: Ascon-AEAD128 (SP 800-232). Fallback: Ascon-128 v1.2 |
+| Varian       | NIST GCM                                  | Backend C: Ascon-AEAD128 (SP 800-232). Fallback: Ascon-128 v1.2     |
 
 Parameter benchmark:
 
-| Konteks | Warm-up | Iterasi |
-|---|---|---|
-| `python main.py` (semua ukuran file) | 5 | 50 |
-| Size sweep dari `main.py` / `python -m src.sweep` | 5 | 50 |
-| Size sweep dari tombol dashboard | 5 | 20 |
-| Upload dashboard, file small | 3 | 10 |
-| Upload dashboard, file medium | 1 | 5 |
-| Upload dashboard, file large | 0 | 1 |
+| Konteks                                           | Warm-up | Iterasi |
+| ------------------------------------------------- | ------- | ------- |
+| `python main.py` (semua ukuran file)              | 5       | 50      |
+| Size sweep dari `main.py` / `python -m src.sweep` | 5       | 50      |
+| Size sweep dari tombol dashboard                  | 5       | 20      |
+| Upload dashboard, file small                      | 3       | 10      |
+| Upload dashboard, file medium                     | 1       | 5       |
+| Upload dashboard, file large                      | 0       | 1       |
 
 Kategori ukuran untuk file upload di dashboard: JSON kecil < 500 KB, sedang 500 KB sampai < 2 MB, besar >= 2 MB. Gambar kecil < 1 MB, sedang 1 MB sampai < 6 MB, besar >= 6 MB.
 
@@ -206,7 +206,7 @@ Dependency (`requirements.txt`): `pycryptodome`, `ascon`, `faker`, `pillow`, `nu
 
 ## Backend Ascon C
 
-Clone lalu run sudah cukup di Windows x64 karena DLL ada di `native/ascon/bin/`. Urutan pencarian di `src/cipher_ascon.py`:
+Secara default proyek memakai library Python `ascon` agar tetap aman bila DLL native tidak kompatibel dengan CPU Windows. Untuk mencoba DLL C secara eksplisit, set `ASCON_BACKEND=c` sebelum menjalankan program. Urutan pencarian DLL di `src/cipher_ascon.py`:
 
 1. `native/ascon/bin/libcrypto_aead_asconaead128_ref.dll`, `crypto_aead_asconaead128_ref.dll`, `ascon.dll`
 2. `native/ascon/build/` dan `native/ascon/` (`ascon.dll`, `libascon.so`, `libascon.dylib`)
@@ -216,7 +216,14 @@ Untuk memastikan backend yang aktif:
 
 ```bash
 python -c "from src.cipher_ascon import BACKEND, VARIANT; print(BACKEND, '|', VARIANT)"
-# C (ascon-c ref) | Ascon-AEAD128 (NIST SP 800-232)
+# Python (ascon lib) | Ascon-128 v1.2 (default)
+```
+
+Jika DLL C sudah dibangun ulang dan kompatibel dengan mesin, PowerShell:
+
+```powershell
+$env:ASCON_BACKEND = "c"
+python -c "from src.cipher_ascon import BACKEND, VARIANT; print(BACKEND, '|', VARIANT)"
 ```
 
 Build ulang dari sumber (butuh `git`, `cmake`, compiler C). Ringkasan; detail di `native/ascon/README.md`:
@@ -291,47 +298,47 @@ Hasil upload disimpan ke `output/results/<nama-file>_<timestamp-UTC>_benchmark.c
 
 Dibuat oleh `src/data_prep.py` dengan seed 42 (`--seed` untuk mengubah). Semua ukuran adalah target; ukuran akhir mendekati.
 
-| File | Target | Isi |
-|---|---|---|
-| `data/json/small.json` | 100 KB | Array transaksi palsu (Faker): `transaction_id`, `name`, `amount`, `timestamp`, `category`, `status` |
-| `data/json/medium.json` | 1000 KB | idem |
-| `data/json/large.json` | 3000 KB | idem |
-| `data/images/small.png` | 500 KB | PNG RGB noise acak, `compress_level=0` |
-| `data/images/medium.png` | 3000 KB | idem |
-| `data/images/large.png` | 8000 KB | idem |
+| File                     | Target  | Isi                                                                                                  |
+| ------------------------ | ------- | ---------------------------------------------------------------------------------------------------- |
+| `data/json/small.json`   | 100 KB  | Array transaksi palsu (Faker): `transaction_id`, `name`, `amount`, `timestamp`, `category`, `status` |
+| `data/json/medium.json`  | 1000 KB | idem                                                                                                 |
+| `data/json/large.json`   | 3000 KB | idem                                                                                                 |
+| `data/images/small.png`  | 500 KB  | PNG RGB noise acak, `compress_level=0`                                                               |
+| `data/images/medium.png` | 3000 KB | idem                                                                                                 |
+| `data/images/large.png`  | 8000 KB | idem                                                                                                 |
 
 Gambar noise tanpa kompresi sengaja dipilih agar ukuran file presisi dan konsisten. Konsekuensinya, gambar ini bukan representasi foto asli. Dataset sudah ter-commit; `main.py` hanya membuatnya ulang jika ada yang hilang.
 
 ## Output dan Skema CSV
 
-| File | Dibuat oleh | Isi |
-|---|---|---|
-| `output/results/benchmark_results.csv` | `main.py` | Ringkasan per (algoritma, file). Ter-track git. |
-| `output/results/raw_samples.csv` | `main.py` | Latensi per iterasi (`Algorithm`, `InputFileName`, `Op` = enc/dec, `Iteration`, `LatencyMs`) |
-| `output/results/environment.json` | `main.py` | Python, platform, CPU, versi pycryptodome, `ascon_backend`, `ascon_variant`, `aesni_speedup` |
-| `output/results/size_sweep.csv`, `size_sweep_raw.csv` | sweep | Baris ringkasan dan sampel mentah per ukuran |
-| `output/results/size_sweep_summary.csv` | sweep | `Kind`, `SizeBytes`, `AesEncMedianMs`, `AsconEncMedianMs`, `RatioAsconOverAes`, `EncPValue` |
-| `output/results/small_messages.csv`, `chunked.csv`, `acceleration.csv` | `python -m src.scenarios` | Hasil skenario |
-| `output/results/quick/*.csv` | tombol dashboard | Versi cepat skenario |
-| `output/results/<nama>_<timestamp>_benchmark.csv` | dashboard | Hasil benchmark file upload |
-| `output/charts/latency_comparison.png` | `main.py` | Batang latensi. Ter-track git. |
-| `output/charts/latency_boxplot.png` | `main.py` | Sebaran latensi per iterasi |
-| `output/charts/size_sweep.png` | `main.py` | Rasio latensi vs ukuran dan titik potong |
-| `output/uploads/<id>/` | dashboard | File upload dan artefak |
+| File                                                                   | Dibuat oleh               | Isi                                                                                          |
+| ---------------------------------------------------------------------- | ------------------------- | -------------------------------------------------------------------------------------------- |
+| `output/results/benchmark_results.csv`                                 | `main.py`                 | Ringkasan per (algoritma, file). Ter-track git.                                              |
+| `output/results/raw_samples.csv`                                       | `main.py`                 | Latensi per iterasi (`Algorithm`, `InputFileName`, `Op` = enc/dec, `Iteration`, `LatencyMs`) |
+| `output/results/environment.json`                                      | `main.py`                 | Python, platform, CPU, versi pycryptodome, `ascon_backend`, `ascon_variant`, `aesni_speedup` |
+| `output/results/size_sweep.csv`, `size_sweep_raw.csv`                  | sweep                     | Baris ringkasan dan sampel mentah per ukuran                                                 |
+| `output/results/size_sweep_summary.csv`                                | sweep                     | `Kind`, `SizeBytes`, `AesEncMedianMs`, `AsconEncMedianMs`, `RatioAsconOverAes`, `EncPValue`  |
+| `output/results/small_messages.csv`, `chunked.csv`, `acceleration.csv` | `python -m src.scenarios` | Hasil skenario                                                                               |
+| `output/results/quick/*.csv`                                           | tombol dashboard          | Versi cepat skenario                                                                         |
+| `output/results/<nama>_<timestamp>_benchmark.csv`                      | dashboard                 | Hasil benchmark file upload                                                                  |
+| `output/charts/latency_comparison.png`                                 | `main.py`                 | Batang latensi. Ter-track git.                                                               |
+| `output/charts/latency_boxplot.png`                                    | `main.py`                 | Sebaran latensi per iterasi                                                                  |
+| `output/charts/size_sweep.png`                                         | `main.py`                 | Rasio latensi vs ukuran dan titik potong                                                     |
+| `output/uploads/<id>/`                                                 | dashboard                 | File upload dan artefak                                                                      |
 
 Kolom `benchmark_results.csv` (satu baris per algoritma per file):
 
-| Kolom | Arti |
-|---|---|
-| `Algorithm` | `AES-GCM` atau `Ascon-128` |
-| `InputFileName`, `FileType`, `SizeCategory` | Nama file, `json` atau `image`, `small`/`medium`/`large` (pada sweep: ukuran byte sebagai teks) |
-| `PlaintextSizeBytes`, `CiphertextSizeBytes` | Ukuran sebelum dan sesudah. Ciphertext sudah termasuk tag 16 byte; nonce tidak dihitung |
-| `EncLatencyMeanMs`, `EncLatencyMedianMs`, `EncLatencyStdMs`, `EncLatencyCI95Ms` | Statistik enkripsi. Std memakai `np.std` (populasi, `ddof=0`); CI 95% memakai `ddof=1` |
-| `DecLatencyMeanMs`, `DecLatencyMedianMs`, `DecLatencyStdMs`, `DecLatencyCI95Ms` | Statistik dekripsi (termasuk verifikasi tag) |
-| `Iterations` | Jumlah iterasi terukur |
-| `OverheadBytes`, `OverheadPct` | Ciphertext dikurangi plaintext, dan persentasenya |
-| `TamperingIntegrityPassed` | `True` bila ciphertext yang dimodifikasi ditolak |
-| `Backend` | `pycryptodome` untuk AES-GCM; `C (ascon-c ref)` atau `Python (ascon lib)` untuk Ascon |
+| Kolom                                                                           | Arti                                                                                            |
+| ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `Algorithm`                                                                     | `AES-GCM` atau `Ascon-128`                                                                      |
+| `InputFileName`, `FileType`, `SizeCategory`                                     | Nama file, `json` atau `image`, `small`/`medium`/`large` (pada sweep: ukuran byte sebagai teks) |
+| `PlaintextSizeBytes`, `CiphertextSizeBytes`                                     | Ukuran sebelum dan sesudah. Ciphertext sudah termasuk tag 16 byte; nonce tidak dihitung         |
+| `EncLatencyMeanMs`, `EncLatencyMedianMs`, `EncLatencyStdMs`, `EncLatencyCI95Ms` | Statistik enkripsi. Std memakai `np.std` (populasi, `ddof=0`); CI 95% memakai `ddof=1`          |
+| `DecLatencyMeanMs`, `DecLatencyMedianMs`, `DecLatencyStdMs`, `DecLatencyCI95Ms` | Statistik dekripsi (termasuk verifikasi tag)                                                    |
+| `Iterations`                                                                    | Jumlah iterasi terukur                                                                          |
+| `OverheadBytes`, `OverheadPct`                                                  | Ciphertext dikurangi plaintext, dan persentasenya                                               |
+| `TamperingIntegrityPassed`                                                      | `True` bila ciphertext yang dimodifikasi ditolak                                                |
+| `Backend`                                                                       | `pycryptodome` untuk AES-GCM; `C (ascon-c ref)` atau `Python (ascon lib)` untuk Ascon           |
 
 ## Contoh Hasil
 
@@ -339,15 +346,15 @@ Diambil dari `output/results/size_sweep_summary.csv` dan `environment.json` di r
 
 Rasio = latensi enkripsi median Ascon dibagi AES-GCM. Di bawah 1 berarti Ascon lebih cepat.
 
-| Ukuran | JSON | Biner |
-|---|---|---|
-| 1 KB | 0,25 | 0,28 |
-| 4 KB | 0,41 | 0,31 |
-| 16 KB | 0,98 (p = 0,08, tidak signifikan) | 1,53 |
-| 64 KB | 2,24 | 1,53 |
-| 256 KB | 4,10 | 3,59 |
-| 1 MB | 2,64 | 3,19 |
-| 10 MB | 3,21 | 3,15 |
+| Ukuran | JSON                              | Biner |
+| ------ | --------------------------------- | ----- |
+| 1 KB   | 0,25                              | 0,28  |
+| 4 KB   | 0,41                              | 0,31  |
+| 16 KB  | 0,98 (p = 0,08, tidak signifikan) | 1,53  |
+| 64 KB  | 2,24                              | 1,53  |
+| 256 KB | 4,10                              | 3,59  |
+| 1 MB   | 2,64                              | 3,19  |
+| 10 MB  | 3,21                              | 3,15  |
 
 Kesimpulan yang didukung data: Ascon menang untuk pesan kecil (di bawah sekitar 16 KB), AES-GCM menang jelas mulai sekitar 64 KB dan sekitar 2,6 sampai 4 kali lebih cepat pada data besar. Sebabnya, pycryptodome memakai AES-NI dan CLMUL di CPU ini, sedangkan Ascon referensi tidak punya akselerasi hardware. Ini berbeda dari literatur perangkat IoT tanpa AES-NI, yang justru ingin ditunjukkan bagian skenario akselerasi.
 
@@ -359,15 +366,15 @@ python -m pytest -v
 
 105 tes lulus pada repo ini. Cakupan:
 
-| File tes | Yang diuji |
-|---|---|
-| `test_aead.py`, `test_aead_noni.py` | Antarmuka `seal` / `open_sealed`, varian tanpa AES-NI |
-| `test_kat.py` | Test vector resmi: 3 vektor GCM NIST/McGrew-Viega dan 1089 vektor Ascon-AEAD128 |
-| `test_benchmark_row.py`, `test_report.py`, `test_stats_utils.py`, `test_env_info.py` | Baris hasil, CSV, statistik, info lingkungan |
-| `test_sweep.py`, `test_sweep_charts.py` | Payload, ringkasan, titik potong, grafik |
-| `test_scenarios_small.py`, `test_scenarios_chunked.py`, `test_scenarios_save.py` | Tiga skenario dan penyimpanannya |
-| `test_demo_tools.py`, `test_dashboard_demo.py` | Logika demo dan bagian demo di dashboard |
-| `test_dashboard_analysis.py`, `test_dashboard_scenarios.py`, `test_dashboard_safety.py` | Bagian dashboard lain dan validasi path upload |
+| File tes                                                                                | Yang diuji                                                                      |
+| --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `test_aead.py`, `test_aead_noni.py`                                                     | Antarmuka `seal` / `open_sealed`, varian tanpa AES-NI                           |
+| `test_kat.py`                                                                           | Test vector resmi: 3 vektor GCM NIST/McGrew-Viega dan 1089 vektor Ascon-AEAD128 |
+| `test_benchmark_row.py`, `test_report.py`, `test_stats_utils.py`, `test_env_info.py`    | Baris hasil, CSV, statistik, info lingkungan                                    |
+| `test_sweep.py`, `test_sweep_charts.py`                                                 | Payload, ringkasan, titik potong, grafik                                        |
+| `test_scenarios_small.py`, `test_scenarios_chunked.py`, `test_scenarios_save.py`        | Tiga skenario dan penyimpanannya                                                |
+| `test_demo_tools.py`, `test_dashboard_demo.py`                                          | Logika demo dan bagian demo di dashboard                                        |
+| `test_dashboard_analysis.py`, `test_dashboard_scenarios.py`, `test_dashboard_safety.py` | Bagian dashboard lain dan validasi path upload                                  |
 
 **Tes KAT Ascon** membaca `native/ascon/ascon-c/crypto_aead/asconaead128/LWC_AEAD_KAT_128_128.txt`. Folder `ascon-c/` tidak ada di git, jadi pada clone baru `test_ascon_aead128_matches_all_official_kat_vectors` di-**SKIP** (bukan gagal). Untuk mengaktifkannya, clone sumber `ascon-c` ke `native/ascon/ascon-c`. Tes itu dan `test_ascon_rejects_flipped_tag` juga di-skip bila backend bukan C, karena vektor KAT hanya berlaku untuk Ascon-AEAD128.
 
@@ -386,16 +393,17 @@ python -m pytest -v
 
 ## Troubleshooting
 
-| Gejala | Penyebab dan solusi |
-|---|---|
-| Kolom `Backend` berisi `Python (ascon lib)` dan Ascon sangat lambat | DLL tidak ditemukan atau bukan Windows. Build backend C dan salin ke `native/ascon/bin/`. |
-| `pytest` melaporkan 1 tes SKIPPED soal KAT Ascon | `native/ascon/ascon-c/` tidak ada. Normal pada clone baru; clone `ascon-c` untuk menjalankannya. |
-| Dashboard menampilkan grafik sweep lama atau kosong | Data dibaca saat server start. Restart `python dashboard.py` setelah `python -m src.sweep`. |
-| Dashboard muncul peringatan "CSV benchmark belum ditemukan" | Belum menjalankan `python main.py`. Dashboard tetap bisa dipakai lewat upload. |
-| `ModuleNotFoundError: No module named 'src'` | Jalankan dari root repo, bukan dari dalam `src/`. |
-| `ImportError` untuk `ascon`, `scipy`, atau `dash` | `pip install -r requirements.txt` di virtual environment yang aktif. |
-| Port 8050 dipakai | Hentikan proses lama, atau ubah `port=` di `dashboard.py`. |
-| `python main.py` sangat lama | Normal, sweep dan file besar dengan 50 iterasi. Kurangi `iterations` di `main.py` untuk percobaan cepat. |
+| Gejala                                                              | Penyebab dan solusi                                                                                                                                                                     |
+| ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Kolom `Backend` berisi `Python (ascon lib)` dan Ascon sangat lambat | DLL tidak ditemukan atau bukan Windows. Build backend C dan salin ke `native/ascon/bin/`.                                                                                               |
+| `pytest` melaporkan 1 tes SKIPPED soal KAT Ascon                    | `native/ascon/ascon-c/` tidak ada. Normal pada clone baru; clone `ascon-c` untuk menjalankannya.                                                                                        |
+| Dashboard menampilkan grafik sweep lama atau kosong                 | Data dibaca saat server start. Restart `python dashboard.py` setelah `python -m src.sweep`.                                                                                             |
+| Dashboard muncul peringatan "CSV benchmark belum ditemukan"         | Belum menjalankan `python main.py`. Dashboard tetap bisa dipakai lewat upload.                                                                                                          |
+| `ModuleNotFoundError: No module named 'src'`                        | Jalankan dari root repo, bukan dari dalam `src/`.                                                                                                                                       |
+| `ImportError` untuk `ascon`, `scipy`, atau `dash`                   | `pip install -r requirements.txt` di virtual environment yang aktif.                                                                                                                    |
+| `OSError: [WinError -1073741795]` atau `0xc000001d` pada Ascon      | DLL C memakai instruksi CPU yang tidak kompatibel. Hapus variabel `ASCON_BACKEND` atau set `$env:ASCON_BACKEND = "python"`; gunakan `ASCON_BACKEND=c` hanya setelah DLL dibangun ulang. |
+| Port 8050 dipakai                                                   | Hentikan proses lama, atau ubah `port=` di `dashboard.py`.                                                                                                                              |
+| `python main.py` sangat lama                                        | Normal, sweep dan file besar dengan 50 iterasi. Kurangi `iterations` di `main.py` untuk percobaan cepat.                                                                                |
 
 ## Dokumen Lain dan Catatan Repo
 

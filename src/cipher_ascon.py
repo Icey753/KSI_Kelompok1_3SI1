@@ -56,7 +56,13 @@ def _load_c_backend():
     return None
 
 
-_ASCON_C = _load_c_backend()
+def _as_ubyte_ptr(data: bytes):
+    """Zero-copy pointer to a bytes object; safe because the C reference code never writes to inputs."""
+    return ctypes.cast(ctypes.c_char_p(data), ctypes.POINTER(ctypes.c_ubyte))
+
+
+_BACKEND_REQUEST = os.environ.get("ASCON_BACKEND", "python").lower()
+_ASCON_C = _load_c_backend() if _BACKEND_REQUEST == "c" else None
 BACKEND = "C (ascon-c ref)" if _ASCON_C is not None else "Python (ascon lib)"
 VARIANT = (
     "Ascon-AEAD128 (NIST SP 800-232)" if _ASCON_C is not None else "Ascon-128 v1.2 (ascon lib)"
@@ -72,11 +78,6 @@ def _load_python_ascon():
             "Install dependency dengan: pip install -r requirements.txt"
         ) from exc
     return ascon
-
-
-def _as_ubyte_ptr(data: bytes):
-    """Zero-copy pointer to a bytes object; safe because the C reference code never writes to inputs."""
-    return ctypes.cast(ctypes.c_char_p(data), ctypes.POINTER(ctypes.c_ubyte))
 
 def ascon_128_encrypt(key: bytes, nonce: bytes, ad: bytes, plaintext: bytes) -> bytes:
     """
