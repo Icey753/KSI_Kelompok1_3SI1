@@ -61,8 +61,7 @@ def _as_ubyte_ptr(data: bytes):
     return ctypes.cast(ctypes.c_char_p(data), ctypes.POINTER(ctypes.c_ubyte))
 
 
-_BACKEND_REQUEST = os.environ.get("ASCON_BACKEND", "python").lower()
-_ASCON_C = _load_c_backend() if _BACKEND_REQUEST == "c" else None
+_ASCON_C = _load_c_backend()
 BACKEND = "C (ascon-c ref)" if _ASCON_C is not None else "Python (ascon lib)"
 VARIANT = (
     "Ascon-AEAD128 (NIST SP 800-232)" if _ASCON_C is not None else "Ascon-128 v1.2 (ascon lib)"
