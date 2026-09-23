@@ -3,8 +3,6 @@ import ctypes
 from ctypes import byref, c_ulonglong, create_string_buffer
 from pathlib import Path
 
-import ascon
-
 BASE_DIR = Path(__file__).resolve().parent.parent
 NATIVE_DIR = BASE_DIR / "native" / "ascon"
 NATIVE_BIN_DIR = NATIVE_DIR / "bin"
@@ -25,7 +23,11 @@ def _load_c_backend():
 
     for candidate in candidates:
         if candidate.exists():
-            library = ctypes.CDLL(str(candidate))
+            try:
+                library = ctypes.CDLL(str(candidate))
+            except OSError:
+                # e.g. missing MinGW runtime (libgcc_s_dw2-1.dll) or wrong OS/arch
+                continue
             library.crypto_aead_encrypt.argtypes = [
                 ctypes.POINTER(ctypes.c_ubyte),
                 ctypes.POINTER(c_ulonglong),
@@ -61,6 +63,17 @@ VARIANT = (
 )
 
 
+def _load_python_ascon():
+    try:
+        import ascon
+    except ModuleNotFoundError as exc:
+        raise ModuleNotFoundError(
+            "Backend Ascon C tidak ditemukan dan package Python 'ascon' juga belum terinstall. "
+            "Install dependency dengan: pip install -r requirements.txt"
+        ) from exc
+    return ascon
+
+
 def _as_ubyte_ptr(data: bytes):
     """Zero-copy pointer to a bytes object; safe because the C reference code never writes to inputs."""
     return ctypes.cast(ctypes.c_char_p(data), ctypes.POINTER(ctypes.c_ubyte))
@@ -79,6 +92,7 @@ def ascon_128_encrypt(key: bytes, nonce: bytes, ad: bytes, plaintext: bytes) -> 
         bytes: Combined ciphertext and 16-byte authentication tag
     """
     if _ASCON_C is None:
+        ascon = _load_python_ascon()
         return ascon.encrypt(key, nonce, ad, plaintext, variant="Ascon-128")
 
     output = create_string_buffer(len(plaintext) + 16)
@@ -112,6 +126,7 @@ def ascon_128_decrypt(key: bytes, nonce: bytes, ad: bytes, ciphertext_with_tag: 
         bytes: Decrypted plaintext if verification succeeds, None otherwise.
     """
     if _ASCON_C is None:
+        ascon = _load_python_ascon()
         return ascon.decrypt(key, nonce, ad, ciphertext_with_tag, variant="Ascon-128")
 
     if len(ciphertext_with_tag) < 16:
