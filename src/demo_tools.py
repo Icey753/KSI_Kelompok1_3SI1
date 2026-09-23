@@ -5,6 +5,7 @@ import os
 from PIL import Image
 
 from src.aead import NONCE_LEN, open_sealed, seal
+from src.cipher_aes import CBC_IV_LEN, aes_cbc_decrypt, aes_cbc_encrypt
 
 DEFAULT_AD = b"cipher-demo"
 TAMPER_TARGETS = ("ciphertext", "tag", "nonce", "ad")
@@ -93,6 +94,24 @@ def nonce_reuse_demo(algorithm, plaintext_a, plaintext_b, ad=DEFAULT_AD) -> dict
         "ciphertext_xor_hex": ct_xor[:32].hex(),
         "recovered_matches_b": recovered == plaintext_b[:leaked],
         "recovered_preview": recovered.decode("utf-8", errors="replace")[:80],
+    }
+
+
+def cbc_tamper_demo(plaintext: bytes, byte_index: int = 0) -> dict:
+    key, iv = os.urandom(16), os.urandom(CBC_IV_LEN)
+    ciphertext = aes_cbc_encrypt(key, iv, plaintext)
+    control = aes_cbc_decrypt(key, iv, ciphertext)
+    flipped_index = byte_index % len(ciphertext)
+    tampered = flip_bit(ciphertext, byte_index)
+    result = aes_cbc_decrypt(key, iv, tampered)
+    return {
+        "byte_index": flipped_index,
+        "control_ok": control == plaintext,
+        "rejected": result is None,
+        "plaintext_returned": result is not None,
+        "plaintext_corrupted": result is not None and result != plaintext,
+        "tampered_preview": result.decode("utf-8", errors="replace") if result is not None else None,
+        "ciphertext_preview_hex": ciphertext[:16].hex(),
     }
 
 

@@ -4,6 +4,7 @@ from PIL import Image
 from src.aead import ALGORITHMS
 from src.demo_tools import (
     TAMPER_TARGETS,
+    cbc_tamper_demo,
     flip_bit,
     image_encryption_demo,
     nonce_reuse_demo,
@@ -66,6 +67,26 @@ def test_nonce_reuse_ascon_leaks_first_block_but_not_everything():
     assert 16 <= result["leaked_bytes"] < result["compared_bytes"]
     assert result["leak_fraction"] < 1.0
     assert result["recovered_matches_b"] is True
+
+
+def test_cbc_tamper_demo_corrupts_silently_when_padding_block_untouched():
+    # 48 bytes = 3 full AES blocks, so PKCS7 adds a 4th block of pure padding.
+    # Flipping a bit in block 0 never touches that padding block, so
+    # unpad() always succeeds and the corruption goes undetected.
+    plaintext = b"data transaksi penting, tiga blok penuh utuh!!!!"
+    assert len(plaintext) == 48
+    result = cbc_tamper_demo(plaintext, byte_index=0)
+    assert result["control_ok"] is True
+    assert result["rejected"] is False
+    assert result["plaintext_returned"] is True
+    assert result["plaintext_corrupted"] is True
+
+
+def test_cbc_tamper_demo_reports_untampered_preview_bytes():
+    plaintext = b"blok pertama rusak, blok setelahnya tetap." + b"!" * 5
+    result = cbc_tamper_demo(plaintext, byte_index=0)
+    # Everything from block 2 onward (bytes 32+) is untouched by a block-0 bit flip.
+    assert result["tampered_preview"][32:] == plaintext.decode("utf-8")[32:]
 
 
 @pytest.mark.parametrize("algorithm", ALGORITHMS)
