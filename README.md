@@ -59,7 +59,7 @@ Bagian ini merangkum hal yang paling sering membuat orang atau agen salah langka
 
 **Aturan penting**
 
-1. **Semua enkripsi lewat satu antarmuka.** `src/aead.py` menyediakan `seal(algorithm, key, nonce, ad, plaintext) -> (ciphertext, tag)` dan `open_sealed(...) -> bytes | None`. Skenario, demo, dan dashboard memakainya. Jangan menulis pemanggilan cipher baru di luar modul ini kecuali ada alasan kuat. Pengecualian yang sudah ada: `src/benchmark.py` memanggil `cipher_aes` dan `cipher_ascon` langsung.
+1. **Semua enkripsi lewat satu antarmuka.** `src/aead.py` menyediakan `seal(algorithm, key, nonce, ad, plaintext) -> (ciphertext, tag)` dan `open_sealed(...) -> bytes | None`. Skenario, demo, dan dashboard memakainya. Jangan menulis pemanggilan cipher baru di luar modul ini kecuali ada alasan kuat. Pengecualian yang sudah ada: `src/benchmark.py` memanggil `cipher_aes` dan `cipher_ascon` langsung. `src/demo_tools.py` juga memanggil `aes_cbc_encrypt`/`aes_cbc_decrypt` dari `cipher_aes.py` langsung untuk demo perbandingan AEAD vs CBC — CBC tidak punya authentication tag sehingga tidak cocok dengan kontrak `seal`/`open_sealed`.
 2. **`None` berarti gagal verifikasi.** Fungsi decrypt tidak melempar exception saat tag salah. Mereka mengembalikan `None`. Selalu cek hasilnya.
 3. **Ukuran nonce berbeda.** AES-GCM 12 byte, Ascon 16 byte, kunci keduanya 16 byte, tag keduanya 16 byte. Nilainya ada di `src/aead.py` (`NONCE_LEN`, `TAG_LEN`).
 4. **Nama algoritma adalah string kunci.** Nilai yang valid: `"AES-GCM"`, `"Ascon-128"`, `"AES-GCM-noNI"` (AES-GCM dengan AES-NI dimatikan, hanya untuk perbandingan akselerasi). Label `"Ascon-128"` dipakai di seluruh CSV dan dashboard, padahal varian sebenarnya lihat poin 5.
@@ -134,7 +134,7 @@ Alur `python main.py`:
 
 | File | Isi |
 |---|---|
-| `src/cipher_aes.py` | `aes_gcm_encrypt` / `aes_gcm_decrypt` (pycryptodome, parameter `use_aesni`). Decrypt mengembalikan `None` jika tag salah. |
+| `src/cipher_aes.py` | `aes_gcm_encrypt` / `aes_gcm_decrypt` (pycryptodome, parameter `use_aesni`). Decrypt mengembalikan `None` jika tag salah. Juga menyediakan `aes_cbc_encrypt`/`aes_cbc_decrypt` (tanpa authentication tag) khusus untuk demo perbandingan AEAD vs CBC di `demo_tools.py`. |
 | `src/cipher_ascon.py` | `ascon_128_encrypt` / `ascon_128_decrypt`. Mencari DLL di `native/ascon/bin/` lalu `native/ascon/build/` dan `native/ascon/`, dipanggil lewat `ctypes`. Jika tidak ada, fallback ke library `ascon`. Output enkripsi berupa ciphertext + tag digabung. Konstanta `BACKEND` dan `VARIANT` menyatakan yang aktif. |
 | `src/aead.py` | Antarmuka seragam `seal` / `open_sealed`, konstanta `TAG_LEN`, `NONCE_LEN`, `ALGORITHMS`, `ALL_VARIANTS`. Memisahkan tag dari output Ascon. |
 

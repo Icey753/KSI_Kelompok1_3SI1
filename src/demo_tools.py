@@ -110,7 +110,7 @@ def cbc_tamper_demo(plaintext: bytes, byte_index: int = 0) -> dict:
         "rejected": result is None,
         "plaintext_returned": result is not None,
         "plaintext_corrupted": result is not None and result != plaintext,
-        "tampered_preview": result.decode("utf-8", errors="replace") if result is not None else None,
+        "tampered_preview": result.decode("utf-8", errors="replace")[:80] if result is not None else None,
         "ciphertext_preview_hex": ciphertext[:16].hex(),
     }
 
