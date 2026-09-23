@@ -26,7 +26,7 @@ def _ids(node) -> set:
 
 def _small():
     return pd.DataFrame(
-        [{"Algorithm": a, "MessageSizeBytes": s, "MessagesPerSec": 1000.0 * (i + 1) / s}
+        [{"Algorithm": a, "MessageSizeBytes": s, "MessagesPerSec": 1000.0 * (i + 1) / s, "Messages": 2000}
          for i, a in enumerate(VARIANTS) for s in (64, 1024)]
     )
 
@@ -77,3 +77,21 @@ def test_section_ids():
     for required in ("scenarios-run", "scenarios-status", "scenarios-small-graph",
                      "scenarios-chunked-graph", "scenarios-accel-graph"):
         assert required in found, required
+
+
+def test_cumulative_time_figure_one_trace_per_variant():
+    from src.dashboard_scenarios import build_cumulative_time_figure
+
+    assert len(build_cumulative_time_figure(_small()).data) == 3
+
+
+def test_cumulative_time_figure_placeholder_when_no_data():
+    from src.dashboard_scenarios import build_cumulative_time_figure
+
+    fig = build_cumulative_time_figure(None)
+    assert len(fig.data) == 0
+
+
+def test_section_ids_include_cumulative_graph():
+    found = _ids(build_scenarios_section())
+    assert "scenarios-small-cumulative-graph" in found

@@ -53,6 +53,20 @@ def build_small_message_figure(df: pd.DataFrame | None) -> go.Figure:
     return _style(fig, barmode="group", height=420)
 
 
+def build_cumulative_time_figure(df: pd.DataFrame | None) -> go.Figure:
+    if df is None or df.empty:
+        return _placeholder()
+    fig = go.Figure()
+    for algorithm, group in df.groupby("Algorithm", sort=False):
+        group = group.sort_values("MessageSizeBytes")
+        total_seconds = group["Messages"] / group["MessagesPerSec"]
+        fig.add_trace(go.Bar(x=[_size_label(s) for s in group["MessageSizeBytes"]], y=total_seconds,
+                             name=algorithm, marker_color=ALGORITHM_COLORS.get(algorithm)))
+    fig.update_yaxes(type="log", title_text="Total waktu untuk semua pesan (detik, skala log)")
+    fig.update_xaxes(title_text="Ukuran satu pesan")
+    return _style(fig, barmode="group", height=420)
+
+
 def build_chunked_figure(df: pd.DataFrame | None) -> go.Figure:
     if df is None or df.empty:
         return _placeholder()
@@ -118,6 +132,9 @@ def build_scenarios_section() -> html.Section:
                           "scenarios-accel-graph", build_acceleration_figure(load_scenario("acceleration"))),
                 ],
             ),
+            _card("Total waktu untuk mengirim semua pesan (skenario IoT/API burst)",
+                  "Sama seperti grafik pesan per detik, tapi dibalik ke total waktu: berapa lama mengirim seluruh batch pesan kecil, per ukuran dan algoritma.",
+                  "scenarios-small-cumulative-graph", build_cumulative_time_figure(load_scenario("small_messages"))),
             _card("File besar dienkripsi per chunk",
                   "Setiap chunk membawa tag 16 byte; chunk lebih kecil berarti overhead lebih besar. AD memuat indeks chunk sehingga penukaran urutan dan pemotongan terdeteksi.",
                   "scenarios-chunked-graph", build_chunked_figure(load_scenario("chunked"))),
@@ -128,6 +145,7 @@ def build_scenarios_section() -> html.Section:
 def register_scenarios_callbacks(app) -> None:
     @app.callback(
         Output("scenarios-small-graph", "figure"),
+        Output("scenarios-small-cumulative-graph", "figure"),
         Output("scenarios-chunked-graph", "figure"),
         Output("scenarios-accel-graph", "figure"),
         Output("scenarios-status", "children"),
@@ -141,6 +159,7 @@ def register_scenarios_callbacks(app) -> None:
         frames = run_and_save_scenarios(**QUICK, results_dir=str(RESULTS_DIR / "quick"))
         return (
             build_small_message_figure(frames["small_messages"]),
+            build_cumulative_time_figure(frames["small_messages"]),
             build_chunked_figure(frames["chunked"]),
             build_acceleration_figure(frames["acceleration"]),
             "Skenario cepat selesai. Hasil disimpan ke output/results/quick/ (hasil lengkap di output/results tidak ditimpa).",
