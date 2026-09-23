@@ -1,4 +1,5 @@
 from Crypto.Cipher import AES
+from Crypto.Util.Padding import pad, unpad
 import os
 
 def aes_gcm_encrypt(key: bytes, nonce: bytes, ad: bytes, plaintext: bytes, use_aesni: bool = True) -> tuple[bytes, bytes]:
@@ -41,6 +42,41 @@ def aes_gcm_decrypt(key: bytes, nonce: bytes, ad: bytes, ciphertext: bytes, tag:
         plaintext = cipher.decrypt_and_verify(ciphertext, tag)
         return plaintext
     except (ValueError, KeyError):
+        return None
+
+CBC_IV_LEN = 16
+
+
+def aes_cbc_encrypt(key: bytes, iv: bytes, plaintext: bytes) -> bytes:
+    """
+    Encrypts plaintext using AES-CBC. No authentication tag: a tampered
+    ciphertext is not detected unless it breaks PKCS7 padding.
+
+    Args:
+        key (bytes): 16 bytes key (AES-128)
+        iv (bytes): 16 bytes initialization vector
+        plaintext (bytes): The data to encrypt
+
+    Returns:
+        bytes: block-aligned ciphertext (PKCS7-padded)
+    """
+    cipher = AES.new(key, AES.MODE_CBC, iv=iv)
+    return cipher.encrypt(pad(plaintext, AES.block_size))
+
+
+def aes_cbc_decrypt(key: bytes, iv: bytes, ciphertext: bytes) -> bytes | None:
+    """
+    Decrypts AES-CBC ciphertext and removes PKCS7 padding.
+
+    Returns:
+        bytes: Decrypted plaintext if padding is valid, None otherwise.
+        A valid-padding result does NOT mean the plaintext is unmodified —
+        CBC has no authentication tag.
+    """
+    cipher = AES.new(key, AES.MODE_CBC, iv=iv)
+    try:
+        return unpad(cipher.decrypt(ciphertext), AES.block_size)
+    except ValueError:
         return None
 
 if __name__ == "__main__":
