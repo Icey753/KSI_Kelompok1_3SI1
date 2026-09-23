@@ -7,6 +7,7 @@ from src.dashboard_demo import (
     _run_image_demo,
     build_demo_section,
     load_plaintext,
+    render_cbc_comparison,
     render_nonce_reuse,
     render_roundtrip,
     render_tamper,
@@ -137,3 +138,21 @@ def test_run_image_demo_renders_images_for_valid_image(tmp_path):
     Image.new("RGB", (8, 8), (10, 20, 30)).save(path)
     state = {"file_type": "image", "file_path": str(path)}
     assert _has_img(_run_image_demo("AES-GCM", state))
+
+
+def test_render_cbc_comparison_shows_silent_corruption_vs_rejection():
+    aead_result = {"algorithm": "AES-GCM", "target": "ciphertext", "byte_index": 0,
+                   "control_ok": True, "rejected": True, "plaintext_returned": False,
+                   "ciphertext_preview_hex": "00", "tag_hex": "11"}
+    cbc_result = {"byte_index": 0, "control_ok": True, "rejected": False,
+                  "plaintext_returned": True, "plaintext_corrupted": True,
+                  "tampered_preview": "garbled...rest ok", "ciphertext_preview_hex": "22"}
+    text = _text(render_cbc_comparison(aead_result, cbc_result))
+    assert "DITOLAK" in text
+    assert "diam-diam" in text.lower()
+
+
+def test_demo_section_has_cbc_ids():
+    ids = _ids(build_demo_section())
+    assert "demo-cbc-run" in ids
+    assert "demo-cbc-result" in ids
