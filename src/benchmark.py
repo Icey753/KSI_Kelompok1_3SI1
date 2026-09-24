@@ -7,8 +7,8 @@ from pathlib import Path
 
 import numpy as np
 
-from src.cipher_aes import aes_gcm_decrypt, aes_gcm_encrypt
-from src.cipher_ascon import BACKEND as ASCON_BACKEND, ascon_128_decrypt, ascon_128_encrypt
+from src.aead import NONCE_LEN, open_sealed, seal
+from src.cipher_ascon import BACKEND as ASCON_BACKEND
 from src.stats_utils import ci95_halfwidth
 
 AD = b"cipher-benchmark-metadata"
@@ -116,72 +116,40 @@ def _run_algorithm_benchmark(
     plaintext_size: int,
     artifact_dir: Path | None = None,
 ) -> tuple[dict, dict]:
-    if algorithm == "AES-GCM":
-        key = os.urandom(16)
-        nonce = os.urandom(12)
-
-        for _ in range(warm_ups):
-            ciphertext, tag = aes_gcm_encrypt(key, nonce, AD, plaintext)
-            _ = aes_gcm_decrypt(key, nonce, AD, ciphertext, tag)
-
-        enc_times: list[float] = []
-        dec_times: list[float] = []
-
-        for _ in range(iterations):
-            start = time.perf_counter()
-            ciphertext, tag = aes_gcm_encrypt(key, nonce, AD, plaintext)
-            end = time.perf_counter()
-            enc_times.append((end - start) * 1000)
-
-            start = time.perf_counter()
-            decrypted = aes_gcm_decrypt(key, nonce, AD, ciphertext, tag)
-            end = time.perf_counter()
-            dec_times.append((end - start) * 1000)
-
-            assert decrypted == plaintext, "AES-GCM decryption mismatch!"
-
-        tampered_ciphertext = bytearray(ciphertext)
-        tampered_ciphertext[0] ^= 0x01
-        tampered_decrypted = aes_gcm_decrypt(key, nonce, AD, bytes(tampered_ciphertext), tag)
-        tampering_passed = tampered_decrypted is None
-
-        ciphertext_bytes = ciphertext + tag
-        tag_bytes = tag
-        nonce_bytes = nonce
-    elif algorithm == "Ascon-128":
-        key = os.urandom(16)
-        nonce = os.urandom(16)
-
-        for _ in range(warm_ups):
-            ciphertext_with_tag = ascon_128_encrypt(key, nonce, AD, plaintext)
-            _ = ascon_128_decrypt(key, nonce, AD, ciphertext_with_tag)
-
-        enc_times = []
-        dec_times = []
-
-        for _ in range(iterations):
-            start = time.perf_counter()
-            ciphertext_with_tag = ascon_128_encrypt(key, nonce, AD, plaintext)
-            end = time.perf_counter()
-            enc_times.append((end - start) * 1000)
-
-            start = time.perf_counter()
-            decrypted = ascon_128_decrypt(key, nonce, AD, ciphertext_with_tag)
-            end = time.perf_counter()
-            dec_times.append((end - start) * 1000)
-
-            assert decrypted == plaintext, "Ascon-128 decryption mismatch!"
-
-        tampered_ciphertext = bytearray(ciphertext_with_tag)
-        tampered_ciphertext[0] ^= 0x01
-        tampered_decrypted = ascon_128_decrypt(key, nonce, AD, bytes(tampered_ciphertext))
-        tampering_passed = tampered_decrypted is None
-
-        ciphertext_bytes = ciphertext_with_tag
-        tag_bytes = ciphertext_with_tag[-16:]
-        nonce_bytes = nonce
-    else:
+    if algorithm not in NONCE_LEN:
         raise ValueError(f"Unsupported algorithm: {algorithm}")
+
+    key = os.urandom(16)
+    nonce = os.urandom(NONCE_LEN[algorithm])
+
+    for _ in range(warm_ups):
+        ciphertext, tag = seal(algorithm, key, nonce, AD, plaintext)
+        _ = open_sealed(algorithm, key, nonce, AD, ciphertext, tag)
+
+    enc_times: list[float] = []
+    dec_times: list[float] = []
+
+    for _ in range(iterations):
+        start = time.perf_counter()
+        ciphertext, tag = seal(algorithm, key, nonce, AD, plaintext)
+        end = time.perf_counter()
+        enc_times.append((end - start) * 1000)
+
+        start = time.perf_counter()
+        decrypted = open_sealed(algorithm, key, nonce, AD, ciphertext, tag)
+        end = time.perf_counter()
+        dec_times.append((end - start) * 1000)
+
+        assert decrypted == plaintext, f"{algorithm} decryption mismatch!"
+
+    tampered_ciphertext = bytearray(ciphertext)
+    tampered_ciphertext[0] ^= 0x01
+    tampered_decrypted = open_sealed(algorithm, key, nonce, AD, bytes(tampered_ciphertext), tag)
+    tampering_passed = tampered_decrypted is None
+
+    ciphertext_bytes = ciphertext + tag
+    tag_bytes = tag
+    nonce_bytes = nonce
 
     ciphertext_size = len(ciphertext_bytes)
     overhead_bytes = ciphertext_size - plaintext_size
