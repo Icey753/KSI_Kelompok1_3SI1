@@ -452,7 +452,7 @@ def build_dash_app(csv_path: str | None) -> dash.Dash:
                     html.Nav(
                         [
                             html.A("Benchmark File", href="#hasil", className="chip"),
-                            html.A("Diagram Alur", href="#diagram", className="chip"),
+                            html.A("Detail Cipher", href="#diagram", className="chip"),
                             html.A("Demo Interaktif", href="#demo", className="chip"),
                             html.A("Analisis Ukuran Data", href="#analisis", className="chip"),
                             html.A("Skenario Realistis", href="#skenario", className="chip"),
@@ -466,12 +466,8 @@ def build_dash_app(csv_path: str | None) -> dash.Dash:
                 id="diagram",
                 className="section",
                 children=[
-                    html.Header(html.H2("Diagram Alur Benchmark", className="section__title"), className="section__head"),
-                    html.Iframe(
-                        src="/assets/diagrams/aead-benchmark-flow.html",
-                        style={"width": "100%", "height": "720px", "border": "none", "borderRadius": "12px"},
-                    ),
-                    html.H3("Detail Internal AES-GCM", className="card-title", style={"marginTop": "24px"}),
+                    html.Header(html.H2("Detail Internal Cipher", className="section__title"), className="section__head"),
+                    html.H3("Detail Internal AES-GCM", className="card-title"),
                     html.Iframe(
                         src="/assets/diagrams/aes-gcm-internals.html",
                         style={"width": "100%", "height": "720px", "border": "none", "borderRadius": "12px"},

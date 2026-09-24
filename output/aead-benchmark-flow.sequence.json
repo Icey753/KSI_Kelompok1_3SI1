@@ -9,14 +9,11 @@
     "animation": "trace",
     "quality_profile": "showcase",
     "views": [
-      { "id": "trigger", "label": "Trigger run", "focus": ["ui", "bench", "aead"], "note": "Dashboard starts a benchmark run through the AEAD seal wrapper." },
-      { "id": "encrypt", "label": "Seal (encrypt)", "focus": ["aead", "ascon", "aesgcm"], "note": "The wrapper routes to Ascon-128 or AES-GCM and gets ciphertext plus tag back." },
-      { "id": "verify", "label": "Open and verify", "focus": ["aead", "verify"], "note": "Decrypt calls tag verification before plaintext is released." },
-      { "id": "report", "label": "Report results", "focus": ["bench", "ui"], "note": "Timing and pass/fail results flow back to the dashboard charts." }
+      { "id": "encrypt", "label": "Seal (encrypt)", "focus": ["bench", "aead", "ascon", "aesgcm"], "note": "The wrapper routes to Ascon-128 or AES-GCM and gets ciphertext plus tag back." },
+      { "id": "verify", "label": "Open and verify", "focus": ["bench", "aead", "verify"], "note": "Decrypt calls tag verification before plaintext is released." }
     ]
   },
   "participants": [
-    { "id": "ui", "type": "frontend", "label": "Dashboard", "sublabel": "Dash UI" },
     { "id": "bench", "type": "backend", "label": "Benchmark Runner", "sublabel": "benchmark.py" },
     { "id": "aead", "type": "backend", "label": "AEAD Wrapper", "sublabel": "seal / open_sealed" },
     { "id": "ascon", "type": "security", "label": "Ascon-128", "sublabel": "cipher_ascon.py" },
@@ -24,31 +21,27 @@
     { "id": "verify", "type": "security", "label": "Tag Verify", "sublabel": "auth tag check" }
   ],
   "segments": [
-    { "from": 160, "to": 195, "label": "Trigger" },
-    { "from": 205, "to": 345, "label": "Seal (encrypt)" },
-    { "from": 355, "to": 480, "label": "Open + verify" },
-    { "from": 480, "to": 540, "label": "Report" }
+    { "from": 160, "to": 300, "label": "Seal (encrypt)" },
+    { "from": 310, "to": 440, "label": "Open + verify" }
   ],
   "messages": [
-    { "id": "run-click", "from": "ui", "to": "bench", "y": 165, "label": "run benchmark", "variant": "emphasis" },
-    { "id": "seal-call", "from": "bench", "to": "aead", "y": 200, "label": "seal(key, nonce, ad, plaintext)", "variant": "default" },
-    { "id": "ascon-encrypt", "from": "aead", "to": "ascon", "y": 230, "label": "ascon_128_encrypt", "variant": "default" },
-    { "id": "ascon-return", "from": "ascon", "to": "aead", "y": 260, "label": "ciphertext + tag", "variant": "return" },
-    { "id": "aes-encrypt", "from": "aead", "to": "aesgcm", "y": 290, "label": "aes_gcm_encrypt", "variant": "default" },
-    { "id": "aes-return", "from": "aesgcm", "to": "aead", "y": 320, "label": "ciphertext + tag", "variant": "return" },
-    { "id": "seal-return", "from": "aead", "to": "bench", "y": 350, "label": "sealed output", "variant": "return" },
-    { "id": "open-call", "from": "bench", "to": "aead", "y": 385, "label": "open_sealed(ciphertext, tag)", "variant": "default" },
-    { "id": "verify-call", "from": "aead", "to": "verify", "y": 415, "label": "verify auth tag", "variant": "security" },
-    { "id": "verify-result", "from": "verify", "to": "aead", "y": 445, "label": "valid / invalid", "variant": "return" },
-    { "id": "open-return", "from": "aead", "to": "bench", "y": 475, "label": "plaintext or None", "variant": "return" },
-    { "id": "results-return", "from": "bench", "to": "ui", "y": 505, "label": "update charts + table", "variant": "return", "note": "records timing + pass/fail before reporting" }
+    { "id": "seal-call", "from": "bench", "to": "aead", "y": 165, "label": "seal(key, nonce, ad, plaintext)", "variant": "default" },
+    { "id": "ascon-encrypt", "from": "aead", "to": "ascon", "y": 195, "label": "ascon_128_encrypt", "variant": "default" },
+    { "id": "ascon-return", "from": "ascon", "to": "aead", "y": 225, "label": "ciphertext + tag", "variant": "return" },
+    { "id": "aes-encrypt", "from": "aead", "to": "aesgcm", "y": 255, "label": "aes_gcm_encrypt", "variant": "default" },
+    { "id": "aes-return", "from": "aesgcm", "to": "aead", "y": 285, "label": "ciphertext + tag", "variant": "return" },
+    { "id": "seal-return", "from": "aead", "to": "bench", "y": 315, "label": "sealed output", "variant": "return" },
+    { "id": "open-call", "from": "bench", "to": "aead", "y": 345, "label": "open_sealed(ciphertext, tag)", "variant": "default" },
+    { "id": "verify-call", "from": "aead", "to": "verify", "y": 375, "label": "verify auth tag", "variant": "security" },
+    { "id": "verify-result", "from": "verify", "to": "aead", "y": 405, "label": "valid / invalid", "variant": "return" },
+    { "id": "open-return", "from": "aead", "to": "bench", "y": 435, "label": "plaintext or None", "variant": "return" }
   ],
   "activations": [
-    { "participant": "bench", "from": 183, "to": 511, "type": "backend" },
-    { "participant": "aead", "from": 195, "to": 481, "type": "backend" },
-    { "participant": "ascon", "from": 225, "to": 265, "type": "security" },
-    { "participant": "aesgcm", "from": 285, "to": 325, "type": "security" },
-    { "participant": "verify", "from": 410, "to": 450, "type": "security" }
+    { "participant": "bench", "from": 148, "to": 441, "type": "backend" },
+    { "participant": "aead", "from": 160, "to": 436, "type": "backend" },
+    { "participant": "ascon", "from": 190, "to": 230, "type": "security" },
+    { "participant": "aesgcm", "from": 250, "to": 290, "type": "security" },
+    { "participant": "verify", "from": 370, "to": 410, "type": "security" }
   ],
   "cards": [
     {
@@ -67,15 +60,6 @@
         "Tag verification is a distinct security step, not implicit",
         "Invalid tag means plaintext is never released",
         "This models authenticated-encryption failure handling"
-      ]
-    },
-    {
-      "dot": "orange",
-      "title": "Feeds the Dashboard",
-      "items": [
-        "Timing and pass/fail results are recorded per run",
-        "Dashboard charts and table update from this result set",
-        "Same flow repeats per algorithm for the comparison benchmark"
       ]
     }
   ]
