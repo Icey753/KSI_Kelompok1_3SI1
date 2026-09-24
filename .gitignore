@@ -16,3 +16,5 @@ docs/
 
 # Ascon: clone upstream + artefak build tidak di-commit; DLL siap pakai di native/ascon/bin/ ikut di-commit
 native/ascon/ascon-c/
+
+PPT*.pdf

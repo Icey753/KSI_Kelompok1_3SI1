@@ -10,7 +10,6 @@ from src.dashboard_safety import trusted_upload
 from src.dashboard_theme import section
 from src.demo_tools import (
     TAMPER_TARGETS,
-    cbc_tamper_demo,
     image_encryption_demo,
     nonce_reuse_demo,
     roundtrip_demo,
@@ -93,41 +92,6 @@ def render_nonce_reuse(results: list[dict]) -> html.Div:
     return html.Div(cards, style={"display": "grid", "gridTemplateColumns": "repeat(auto-fit, minmax(min(300px, 100%), 1fr))", "gap": "1rem"})
 
 
-def render_cbc_comparison(aead_result: dict, cbc_result: dict) -> html.Div:
-    aead_rejected = aead_result["rejected"]
-    cbc_corrupted = cbc_result["plaintext_corrupted"]
-    cbc_rejected = cbc_result["rejected"]
-    if cbc_rejected:
-        cbc_verdict = "AES-CBC: DITOLAK (kebetulan padding jadi tidak valid)"
-    elif cbc_corrupted:
-        cbc_verdict = "AES-CBC: DITERIMA, data rusak diam-diam (tanpa autentikasi)"
-    else:
-        cbc_verdict = "AES-CBC: DITERIMA, kebetulan tidak berubah"
-    return html.Div(
-        [
-            html.Div(
-                [
-                    _verdict(
-                        "AEAD (AES-GCM): DITOLAK, integritas terjaga" if aead_rejected
-                        else "AEAD (AES-GCM): DITERIMA, BAHAYA",
-                        aead_rejected,
-                    ),
-                    _line("Bagian diubah", f"ciphertext (byte ke-{aead_result['byte_index']})"),
-                ],
-                className="card card--inset",
-            ),
-            html.Div(
-                [
-                    _verdict(cbc_verdict, cbc_rejected),
-                    _line("Bagian diubah", f"ciphertext (byte ke-{cbc_result['byte_index']})"),
-                    _line("Plaintext berubah diam-diam", "ya" if cbc_corrupted else "tidak"),
-                    _line("Cuplikan hasil dekripsi", cbc_result["tampered_preview"] or "(ditolak)"),
-                ],
-                className="card card--inset",
-            ),
-        ],
-        style={"display": "grid", "gridTemplateColumns": "repeat(auto-fit, minmax(min(300px, 100%), 1fr))", "gap": "1rem"},
-    )
 
 
 def _data_uri(png: bytes) -> str:
@@ -205,7 +169,6 @@ def build_demo_section() -> html.Section:
                         "3. Bahaya nonce dipakai ulang",
                         "Dua pesan dienkripsi dengan key dan nonce yang sama, lalu XOR ciphertext dibandingkan dengan XOR plaintext. Kedua algoritma dijalankan.",
                         [
-                            _nonce_incident_note(),
                             html.Label("Pesan A", htmlFor="demo-nonce-text-a", className="field-label"),
                             dcc.Input(id="demo-nonce-text-a", type="text", value="Transfer Rp 5.000.000 ke rekening A", className="field", style={"marginBottom": "0.5rem"}),
                             html.Label("Pesan B", htmlFor="demo-nonce-text-b", className="field-label"),
@@ -218,12 +181,6 @@ def build_demo_section() -> html.Section:
                         "Piksel gambar yang diunggah dienkripsi, lalu ciphertext-nya dirender sebagai gambar. Hanya untuk file gambar.",
                         [],
                         "demo-image-run", "Enkripsi gambar", "demo-image-result",
-                    ),
-                    _panel(
-                        "5. AEAD vs CBC tanpa autentikasi",
-                        "Byte pertama ciphertext diubah pada kedua metode. AES-GCM (AEAD) menolak; AES-CBC polos biasanya tetap mengembalikan data, hanya rusak diam-diam.",
-                        [],
-                        "demo-cbc-run", "Bandingkan AEAD vs CBC", "demo-cbc-result",
                     ),
                 ],
             ),
@@ -247,28 +204,6 @@ def _run_image_demo(algorithm, upload_state) -> html.Div:
 
 def _source_note(source: str) -> html.Div:
     return html.Div(f"Sumber: {source}", className="muted", style={"marginBottom": "0.5rem"})
-
-
-def _nonce_incident_note() -> html.Div:
-    return html.Div(
-        [
-            html.P(
-                "Ini bukan cuma teori: pada 2023, software backup Kopia sempat punya bug generator "
-                "nonce acak yang membuat reuse nonce mungkin terjadi pada skala besar.",
-                className="muted",
-                style={"marginBottom": "0.5rem"},
-            ),
-            html.A(
-                "Lihat laporan bug: github.com/kopia/kopia issue #5169",
-                href="https://github.com/kopia/kopia/issues/5169",
-                target="_blank",
-                rel="noopener noreferrer",
-                className="muted",
-            ),
-        ],
-        className="card card--inset",
-        style={"marginBottom": "0.75rem"},
-    )
 
 
 def register_demo_callbacks(app) -> None:
@@ -333,20 +268,3 @@ def register_demo_callbacks(app) -> None:
             raise PreventUpdate
         return _run_image_demo(algorithm, trusted_upload(upload_state))
 
-    @app.callback(
-        Output("demo-cbc-result", "children"),
-        Input("demo-cbc-run", "n_clicks"),
-        State("upload-state", "data"),
-        prevent_initial_call=True,
-    )
-    def run_cbc_comparison(n_clicks, upload_state):
-        if not n_clicks:
-            raise PreventUpdate
-        plaintext, source = load_plaintext(trusted_upload(upload_state))
-        if len(plaintext) < 48:
-            # Guarantee at least 3 full blocks before the PKCS7 padding block, so a
-            # byte-0 tamper never touches padding and the comparison stays deterministic.
-            plaintext = plaintext.ljust(48, b"\x00")
-        aead_result = tamper_demo("AES-GCM", plaintext, "ciphertext", byte_index=0)
-        cbc_result = cbc_tamper_demo(plaintext, byte_index=0)
-        return html.Div([_source_note(source), render_cbc_comparison(aead_result, cbc_result)])

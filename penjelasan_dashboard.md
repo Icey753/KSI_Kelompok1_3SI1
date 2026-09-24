@@ -40,7 +40,7 @@ Uji tamper: saya balik satu bit di ciphertext lalu coba dekripsi. AEAD yang bena
 
 Enkripsi lalu dekripsi balik: bukti data kembali utuh, dibandingkan hash SHA-256 sebelum dan sesudah.
 
-Bahaya nonce dipakai ulang: dua pesan dienkripsi pakai key dan nonce yang sama, lalu hasil XOR-nya dibandingkan. Contoh nyatanya ada, bug di software backup Kopia tahun 2023 sempat bikin nonce reuse kejadian di produksi.
+Bahaya nonce dipakai ulang: dua pesan dienkripsi pakai key dan nonce yang sama, lalu hasil XOR-nya dibandingkan.
 
 Gambar asli vs ciphertext: piksel file gambar yang diupload dienkripsi, lalu ciphertext-nya dirender ulang jadi gambar, biar keliatan bedanya data acak dengan data asli.
 
